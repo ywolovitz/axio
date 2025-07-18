@@ -16,9 +16,9 @@ const DB_CONFIG = {
 
 // API Configuration
 const API_CONFIG = {
-  token: 'EiA6h979ICXCQilA3W46Vw',
+  token: process.env.API_TOKEN || '',
   baseUrl: 'https://axioconnect.qcontact.com/api/v2/entities/DataExport',
-  uid: 'yoni@queado.co.za',
+  uid: process.env.API_UID || '',
   client: 'reporting'
 };
 

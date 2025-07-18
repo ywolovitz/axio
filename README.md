@@ -1,8 +1,8 @@
-# 📊 CSV Import Server
+# CSV Import Server
 
 A robust Node.js server for automated CSV data imports with scheduled daily processing and comprehensive API management.
 
-## 🚀 Features
+## Features
 
 - **10 Data Types**: Buildings, Cases, Conversations, Interactions, User State Interactions, Users, User Session History, Schedule, SLA Policy, NOC Interactions
 - **Automated Scheduling**: Daily imports with cron jobs
@@ -11,7 +11,7 @@ A robust Node.js server for automated CSV data imports with scheduled daily proc
 - **Progress Monitoring**: Real-time import progress and statistics
 - **Table Management**: Dynamic table reset and structure management
 
-## 📦 Installation
+## Installation
 
 ```bash
 # Clone or create project directory
@@ -25,7 +25,7 @@ cp .env.example .env
 # Edit .env with your database credentials
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables (`.env`)
 ```env
@@ -41,7 +41,7 @@ DB_NAME=ysw_data
 DB_PORT=3306
 ```
 
-## 🎯 Quick Start
+## Quick Start
 
 ```bash
 # Start the server
@@ -50,27 +50,27 @@ node server.js
 # Server will start on http://localhost:3000
 ```
 
-## 📡 API Endpoints
+## API Endpoints
 
-### 🏥 Health Check
+### Health Check
 ```bash
 # Check server status and scheduler info
 curl http://localhost:3000/health
 ```
 
-### 🔍 Test API Connectivity
+### Test API Connectivity
 ```bash
 # Test all data source APIs before importing
 curl http://localhost:3000/test-api
 ```
 
-### 📊 View Database Info
+### View Database Info
 ```bash
 # Get table structures and row counts
 curl http://localhost:3000/table-info
 ```
 
-## 📥 Data Import Endpoints
+## Data Import Endpoints
 
 ### Individual Data Imports
 ```bash
@@ -111,7 +111,7 @@ curl http://localhost:3000/import-noc-interactions
 curl http://localhost:3000/import-all
 ```
 
-## 📅 Scheduler Management
+## Scheduler Management
 
 ### Check Scheduler Status
 ```bash
@@ -172,7 +172,7 @@ curl -X POST http://localhost:3000/scheduler/trigger
 }
 ```
 
-## 🔧 Database Table Management
+## Database Table Management
 
 ### Reset Individual Tables
 ```bash
@@ -207,7 +207,7 @@ curl http://localhost:3000/reset-sla-policy-table
 curl http://localhost:3000/reset-noc-interactions-table
 ```
 
-## ⏰ Schedule Configuration
+## Schedule Configuration
 
 ### Default Schedule
 - **Daily at 2:00 AM** (Africa/Johannesburg timezone)
@@ -239,7 +239,7 @@ const CRON_CONFIG = {
 * * * * *
 ```
 
-## 📊 Typical Workflow
+## Typical Workflow
 
 ### 1. Setup and Test
 ```bash
@@ -275,7 +275,7 @@ curl http://localhost:3000/table-info
 curl http://localhost:3000/scheduler/status
 ```
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -317,7 +317,7 @@ Server logs provide detailed information:
 - Processing duration
 - Error details
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 csv-import-server/
@@ -332,21 +332,21 @@ csv-import-server/
 └── README.md         # This file
 ```
 
-## 🔒 Security Notes
+## Security Notes
 
 - Never commit `.env` file to version control
 - API credentials are stored in environment variables
 - Database connections use connection pooling
 - Error messages don't expose sensitive information
 
-## 📈 Performance
+## Performance
 
 - **Batch Processing**: Data processed in chunks for memory efficiency
 - **Progress Tracking**: Real-time progress indicators
 - **Error Recovery**: Continues processing if individual records fail
 - **Connection Management**: Proper database connection handling
 
-## 🎯 Production Deployment
+## Production Deployment
 
 ### Using PM2
 ```bash
@@ -370,7 +370,7 @@ Uncomment these lines in `server.js` for automatic scheduler startup:
 
 ---
 
-## 📞 Support
+## Support
 
 For issues or questions:
 1. Check server logs for detailed error information
