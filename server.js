@@ -2,6 +2,12 @@ const express = require('express');
 const { SERVER_CONFIG, EXPORT_URLS } = require('./config');
 const { initDatabase, getConnection, closeDatabase } = require('./database');
 const {
+  startScheduledImports,
+  stopScheduledImports,
+  triggerManualImport,
+  getSchedulerStatus
+} = require('./scheduler');
+const {
   saveBuildingsData,
   handleCasesData,
   handleConversationsData,
@@ -23,6 +29,9 @@ const {
 
 const app = express();
 const PORT = SERVER_CONFIG.port;
+
+// Global variable to store the cron job reference
+let scheduledImportJob = null;
 
 // Middleware
 app.use(express.json());
@@ -429,8 +438,101 @@ app.get('/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    version: '2.0.0'
+    version: '2.0.0',
+    scheduler: getSchedulerStatus()
   });
+});
+
+// Scheduler management routes
+app.get('/scheduler/status', (req, res) => {
+  try {
+    const status = getSchedulerStatus();
+    res.json({
+      success: true,
+      scheduler: {
+        ...status,
+        isRunning: scheduledImportJob !== null,
+        lastCheck: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get scheduler status',
+      error: error.message
+    });
+  }
+});
+
+app.post('/scheduler/start', (req, res) => {
+  try {
+    if (scheduledImportJob) {
+      return res.json({
+        success: false,
+        message: 'Scheduler is already running'
+      });
+    }
+    
+    scheduledImportJob = startScheduledImports();
+    
+    res.json({
+      success: true,
+      message: 'Scheduled daily imports started successfully',
+      schedule: 'Daily at 2:00 AM (Africa/Johannesburg)'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to start scheduler',
+      error: error.message
+    });
+  }
+});
+
+app.post('/scheduler/stop', (req, res) => {
+  try {
+    if (!scheduledImportJob) {
+      return res.json({
+        success: false,
+        message: 'No scheduled imports are currently running'
+      });
+    }
+    
+    stopScheduledImports(scheduledImportJob);
+    scheduledImportJob = null;
+    
+    res.json({
+      success: true,
+      message: 'Scheduled imports stopped successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to stop scheduler',
+      error: error.message
+    });
+  }
+});
+
+app.post('/scheduler/trigger', async (req, res) => {
+  try {
+    console.log('🔧 Manual import triggered via API...');
+    const result = await triggerManualImport();
+    
+    res.json({
+      success: result.success,
+      message: result.success ? 'Manual import completed successfully' : 'Manual import completed with errors',
+      report: result.report,
+      duration: `${(result.duration / 1000 / 60).toFixed(2)} minutes`
+    });
+  } catch (error) {
+    console.error('💥 Manual import failed via API:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Manual import failed',
+      error: error.message
+    });
+  }
 });
 
 // Table reset routes (keeping the original functionality)
@@ -502,12 +604,18 @@ app.use((req, res) => {
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('Shutting down gracefully...');
+  if (scheduledImportJob) {
+    stopScheduledImports(scheduledImportJob);
+  }
   await closeDatabase();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('Received SIGTERM, shutting down gracefully...');
+  if (scheduledImportJob) {
+    stopScheduledImports(scheduledImportJob);
+  }
   await closeDatabase();
   process.exit(0);
 });
@@ -522,6 +630,11 @@ async function startServer() {
       console.log(`📖 Visit http://localhost:${PORT} for API documentation`);
       console.log(`🏥 Health check: http://localhost:${PORT}/health`);
       console.log(`🔍 Test APIs: http://localhost:${PORT}/test-api`);
+      console.log(`📅 Scheduler status: http://localhost:${PORT}/scheduler/status`);
+      
+      // Optionally start scheduler automatically (uncomment if desired)
+      // console.log('\n📅 Starting automatic daily import scheduler...');
+      // scheduledImportJob = startScheduledImports();
     });
     
     server.on('error', (error) => {
