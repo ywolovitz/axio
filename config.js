@@ -32,7 +32,8 @@ const EXPORT_URLS = {
   users: `${API_CONFIG.baseUrl}/5157670999/actions/run?csv=true&access-token=${API_CONFIG.token}&client=${API_CONFIG.client}&uid=${API_CONFIG.uid}`,
   userSessionHistory: `${API_CONFIG.baseUrl}/5219392695/actions/run?csv=true&access-token=${API_CONFIG.token}&client=${API_CONFIG.client}&uid=${API_CONFIG.uid}`,
   schedule: `${API_CONFIG.baseUrl}/20348692306/actions/run?csv=true&access-token=${API_CONFIG.token}&client=${API_CONFIG.client}&uid=${API_CONFIG.uid}`,
-  slaPolicy: `${API_CONFIG.baseUrl}/20357111093/actions/run?csv=true&access-token=${API_CONFIG.token}&client=${API_CONFIG.client}&uid=${API_CONFIG.uid}`
+  slaPolicy: `${API_CONFIG.baseUrl}/20357111093/actions/run?csv=true&access-token=${API_CONFIG.token}&client=${API_CONFIG.client}&uid=${API_CONFIG.uid}`,
+  nocInteractions: `${API_CONFIG.baseUrl}/5157703494/actions/run?csv=true&access-token=${API_CONFIG.token}&client=${API_CONFIG.client}&uid=${API_CONFIG.uid}`
 };
 
 // HTTP Request Configuration

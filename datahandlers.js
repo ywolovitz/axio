@@ -50,17 +50,18 @@ async function saveBuildingsData(buildingsData) {
     
     const insertQuery = `
       INSERT INTO Buildings (
-        unit_count, building_name, deployment_method, portfolio_id, 
+        id, unit_count, building_name, deployment_method, portfolio_id, 
         portfolio, label, building_manager, building_manager_details
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     for (const building of buildingsData) {
       // Map CSV columns to database fields (adjust column names as needed)
       const values = [
+        convertToInt(building['ID']), // Use CSV ID as primary key
         convertToInt(building['Unit Count']),
         building['Building Name'] || '',
-        building['Deployment Method/ID'] || '',
+        building['Deployment Methodology'] || '',
         convertToInt(building['Portfolio ID']),
         building['Portfolio'] || '',
         building['Label'] || '',
@@ -102,6 +103,7 @@ async function handleCasesData(casesData) {
     
     // CSV column name to database column mapping
     const columnMapping = {
+      'ID': 'id', // Use CSV ID as primary key
       'Logged Via': 'logged_via',
       'Type': 'type', 
       'Time Logged': 'time_logged',
@@ -120,7 +122,6 @@ async function handleCasesData(casesData) {
       'Contact - E-mail': 'contact_email',
       'Contact - Unit Details': 'contact_unit_details',
       'Department - ID': 'department_id',
-      'ID': 'case_id',
       'Created At': 'created_at',
       'Building - Name': 'building_name',
       'Building - Portfolio': 'building_portfolio',
@@ -169,7 +170,7 @@ async function handleCasesData(casesData) {
             }
             
             // Handle integer fields
-            if (['case_id', 'assigned_to', 'building_id', 'sla_policy_id'].includes(dbColumn)) {
+            if (['id', 'assigned_to', 'building_id', 'sla_policy_id'].includes(dbColumn)) {
               return convertToInt(value);
             }
             
@@ -405,7 +406,7 @@ async function handleInteractionsData(interactionsData) {
             }
             
             // Handle integer fields
-            if (['user_id', 'interaction_id'].includes(dbColumn)) {
+            if (['id', 'user_id'].includes(dbColumn)) {
               return convertToInt(value);
             }
             
@@ -962,6 +963,158 @@ async function handleSLAPolicyData(slaPolicyData) {
   }
 }
 
+// NOC Interactions data handler
+async function handleNOCInteractionsData(nocInteractionsData) {
+  const connection = getConnection();
+  
+  try {
+    console.log('=== NOC INTERACTIONS DATA ===');
+    console.log(`Total NOC interactions: ${nocInteractionsData.length}`);
+    
+    if (nocInteractionsData.length === 0) {
+      console.log('No NOC interactions data to process');
+      return;
+    }
+
+    console.log('Sample NOC interactions data:');
+    nocInteractionsData.slice(0, LOGGING_CONFIG.sampleDataLogs).forEach((nocInteractionItem, index) => {
+      console.log(`NOC Interaction ${index + 1}:`, JSON.stringify(nocInteractionItem, null, 2));
+    });
+    
+    await connection.execute('DELETE FROM NOCInteractions');
+    
+    const columnMapping = {
+      'ID': 'id', // Use CSV ID as primary key
+      'Answered': 'answered',
+      'Auto answer': 'auto_answer',
+      'Channel Type': 'channel_type',
+      'Completed': 'completed',
+      'Conversation - ID': 'conversation_id',
+      'Created At': 'created_at',
+      'Created By - ID': 'created_by_id',
+      'Created By - First Name': 'created_by_first_name',
+      'Created By - Label': 'created_by_label',
+      'Created By - Last Name': 'created_by_last_name',
+      'Department - ID': 'department_id',
+      'Department - Label': 'department_label',
+      'Disposition - ID': 'disposition_id',
+      'Disposition - Label': 'disposition_label',
+      'Disposition - Name': 'disposition_name',
+      'Disposition Required': 'disposition_required',
+      'Ended': 'ended',
+      'From': 'from_field',
+      'From Name': 'from_name',
+      'Hangup Cause': 'hangup_cause',
+      'Hangup Party': 'hangup_party',
+      'Interaction Direction': 'interaction_direction',
+      'Interaction Type': 'interaction_type',
+      'Label': 'label',
+      'On Hold': 'on_hold',
+      'Pending outcome': 'pending_outcome',
+      'Started': 'started',
+      'Status': 'status',
+      'Time To Reply': 'time_to_reply',
+      'Tracked': 'tracked',
+      'Updated At': 'updated_at',
+      'User - ID': 'user_id',
+      'User - Label': 'user_label',
+      'User - Job Title': 'user_job_title',
+      'User - User Type': 'user_user_type',
+      'Wait For Agent': 'wait_for_agent',
+      'Wait For Customer': 'wait_for_customer',
+      'Contact - ID': 'contact_id',
+      'Transfer type': 'transfer_type',
+      'Read time': 'read_time',
+      'Original channel - Source': 'original_channel_source',
+      'Original channel - Lead Source': 'original_channel_lead_source',
+      'Original channel - Channel Types': 'original_channel_channel_types',
+      'Handle Time': 'handle_time',
+      'Endpoint - Name': 'endpoint_name',
+      'Endpoint - Lead Source': 'endpoint_lead_source',
+      'Duration': 'duration',
+      'Conversation - Channel Types': 'conversation_channel_types',
+      'B Leg Interaction - Status': 'b_leg_interaction_status',
+      'B Leg Interaction - CSAT': 'b_leg_interaction_csat',
+      'B Leg Interaction - Time To Reply': 'b_leg_interaction_time_to_reply',
+      'B Leg Interaction - Time To Reply_1': 'b_leg_interaction_time_to_reply_2'
+    };
+    
+    const dbColumns = Object.values(columnMapping);
+    const csvColumns = Object.keys(columnMapping);
+    
+    const placeholders = dbColumns.map(() => '?').join(', ');
+    const insertQuery = `INSERT INTO NOCInteractions (${dbColumns.join(', ')}) VALUES (${placeholders})`;
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const nocInteractionItem of nocInteractionsData) {
+      try {
+        const values = csvColumns.map(csvCol => {
+          let value = nocInteractionItem[csvCol];
+          
+          if (value === undefined || value === null || value === '') {
+            return null;
+          }
+          
+          if (typeof value === 'string') {
+            value = value.trim();
+            
+            const dbColumn = columnMapping[csvCol];
+            
+            // Handle date fields
+            if (['answered', 'completed', 'created_at', 'ended', 'started', 'updated_at', 'read_time'].includes(dbColumn)) {
+              return convertToMySQLDateTime(value);
+            }
+            
+            // Handle boolean fields
+            if (['auto_answer', 'disposition_required', 'on_hold', 'pending_outcome', 'tracked'].includes(dbColumn)) {
+              return convertToBoolean(value);
+            }
+            
+            // Handle integer fields
+            if (['id', 'conversation_id', 'created_by_id', 'department_id', 'disposition_id', 'user_id', 'contact_id'].includes(dbColumn)) {
+              return convertToInt(value);
+            }
+            
+            // Handle decimal fields
+            if (['time_to_reply', 'wait_for_agent', 'wait_for_customer', 'handle_time', 'duration', 'b_leg_interaction_csat', 'b_leg_interaction_time_to_reply', 'b_leg_interaction_time_to_reply_2'].includes(dbColumn)) {
+              return convertToDecimal(value);
+            }
+          }
+          
+          return value;
+        });
+        
+        await connection.execute(insertQuery, values);
+        successCount++;
+        
+        if (successCount % 50 === 0) {
+          console.log(`  → Inserted ${successCount} NOC interactions...`);
+        }
+        
+      } catch (error) {
+        errorCount++;
+        if (errorCount <= LOGGING_CONFIG.maxErrorLogs) {
+          console.error(`Error inserting NOC interaction row ${successCount + errorCount}:`, error.message);
+          if (errorCount === 1) {
+            console.error('Sample problematic data:', JSON.stringify(nocInteractionItem, null, 2));
+          }
+        }
+      }
+    }
+    
+    console.log(`✓ Successfully inserted ${successCount} NOC interactions into database`);
+    if (errorCount > 0) {
+      console.log(`✗ Failed to insert ${errorCount} NOC interactions`);
+    }
+    console.log('=============================');
+  } catch (error) {
+    console.error('Error handling NOC interactions data:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   saveBuildingsData,
   handleCasesData,
@@ -971,5 +1124,6 @@ module.exports = {
   handleUsersData,
   handleUserSessionHistoryData,
   handleScheduleData,
-  handleSLAPolicyData
+  handleSLAPolicyData,
+  handleNOCInteractionsData
 };

@@ -19,6 +19,7 @@ async function initDatabase() {
     await createUserSessionHistoryTable();
     await createScheduleTable();
     await createSLAPolicyTable();
+    await createNOCInteractionsTable();
     
     return connection;
   } catch (error) {
@@ -39,7 +40,7 @@ function getConnection() {
 async function createBuildingsTable() {
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS Buildings (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id BIGINT PRIMARY KEY,
       unit_count INT,
       building_name VARCHAR(255),
       deployment_method VARCHAR(255),
@@ -66,7 +67,7 @@ async function createBuildingsTable() {
 async function createCasesTable() {
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS Cases (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id BIGINT PRIMARY KEY,
       logged_via VARCHAR(255),
       type VARCHAR(255),
       time_logged DECIMAL(15,2),
@@ -85,7 +86,6 @@ async function createCasesTable() {
       contact_email VARCHAR(255),
       contact_unit_details TEXT,
       department_id DECIMAL(15,2),
-      case_id BIGINT,
       created_at DATETIME,
       building_name VARCHAR(255),
       building_portfolio VARCHAR(255),
@@ -149,7 +149,7 @@ async function createConversationsTable() {
 async function createInteractionsTable() {
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS Interactions (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id BIGINT PRIMARY KEY,
       user_id BIGINT,
       answered VARCHAR(255),
       channel_type VARCHAR(255),
@@ -163,7 +163,6 @@ async function createInteractionsTable() {
       from_name VARCHAR(255),
       from_handle VARCHAR(255),
       time_field DATETIME,
-      interaction_id BIGINT,
       interaction_direction VARCHAR(255),
       interaction_type VARCHAR(255),
       label VARCHAR(255),
@@ -355,6 +354,77 @@ async function createSLAPolicyTable() {
   }
 }
 
+// NOC Interactions table creation
+async function createNOCInteractionsTable() {
+  const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS NOCInteractions (
+      id BIGINT PRIMARY KEY,
+      answered DATETIME,
+      auto_answer BOOLEAN,
+      channel_type VARCHAR(255),
+      completed DATETIME,
+      conversation_id BIGINT,
+      created_at DATETIME,
+      created_by_id BIGINT,
+      created_by_first_name VARCHAR(255),
+      created_by_label VARCHAR(255),
+      created_by_last_name VARCHAR(255),
+      department_id BIGINT,
+      department_label VARCHAR(255),
+      disposition_id BIGINT,
+      disposition_label VARCHAR(255),
+      disposition_name VARCHAR(255),
+      disposition_required BOOLEAN,
+      ended DATETIME,
+      from_field VARCHAR(255),
+      from_name VARCHAR(255),
+      hangup_cause VARCHAR(255),
+      hangup_party VARCHAR(255),
+      interaction_direction VARCHAR(255),
+      interaction_type VARCHAR(255),
+      label TEXT,
+      on_hold BOOLEAN,
+      pending_outcome BOOLEAN,
+      started DATETIME,
+      status VARCHAR(255),
+      time_to_reply DECIMAL(15,2),
+      tracked BOOLEAN,
+      updated_at DATETIME,
+      user_id BIGINT,
+      user_label VARCHAR(255),
+      user_job_title VARCHAR(255),
+      user_user_type VARCHAR(255),
+      wait_for_agent DECIMAL(15,2),
+      wait_for_customer DECIMAL(15,2),
+      contact_id BIGINT,
+      transfer_type VARCHAR(255),
+      read_time DATETIME,
+      original_channel_source VARCHAR(255),
+      original_channel_lead_source VARCHAR(255),
+      original_channel_channel_types VARCHAR(255),
+      handle_time DECIMAL(15,2),
+      endpoint_name VARCHAR(255),
+      endpoint_lead_source VARCHAR(255),
+      duration DECIMAL(15,2),
+      conversation_channel_types VARCHAR(255),
+      b_leg_interaction_status VARCHAR(255),
+      b_leg_interaction_csat DECIMAL(15,2),
+      b_leg_interaction_time_to_reply DECIMAL(15,2),
+      b_leg_interaction_time_to_reply_2 DECIMAL(15,2),
+      imported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      table_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `;
+  
+  try {
+    await connection.execute(createTableQuery);
+    console.log('NOCInteractions table created or already exists');
+  } catch (error) {
+    console.error('Error creating NOCInteractions table:', error);
+    throw error;
+  }
+}
+
 // Graceful database closure
 async function closeDatabase() {
   if (connection) {
@@ -375,5 +445,6 @@ module.exports = {
   createUsersTable,
   createUserSessionHistoryTable,
   createScheduleTable,
-  createSLAPolicyTable
+  createSLAPolicyTable,
+  createNOCInteractionsTable
 };
