@@ -10,7 +10,8 @@ const {
   handleUsersData,
   handleUserSessionHistoryData,
   handleScheduleData,
-  handleSLAPolicyData
+  handleSLAPolicyData,
+  handleNOCInteractionsData
 } = require('./datahandlers');
 const {
   downloadAndParseCSV,
@@ -267,6 +268,29 @@ app.get('/import-sla-policy', async (req, res) => {
   }
 });
 
+app.get('/import-noc-interactions', async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    console.log('🔄 Starting NOC interactions import...');
+    const nocInteractionsData = await downloadAndParseCSV(EXPORT_URLS.nocInteractions, 'NOC interactions');
+    await handleNOCInteractionsData(nocInteractionsData);
+    
+    logProcessingSummary('NOC interactions', startTime, nocInteractionsData.length);
+    
+    res.json({
+      success: true,
+      message: 'NOC interactions data processed successfully',
+      recordsProcessed: nocInteractionsData.length,
+      duration: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
+    });
+  } catch (error) {
+    console.error('🔄 NOC interactions import failed:', error);
+    const errorResponse = handleCSVError(error, 'NOC interactions');
+    res.status(500).json(errorResponse);
+  }
+});
+
 // Import all data types
 app.get('/import-all', async (req, res) => {
   const overallStartTime = Date.now();
@@ -284,7 +308,8 @@ app.get('/import-all', async (req, res) => {
       { name: 'users', url: EXPORT_URLS.users, handler: handleUsersData, emoji: '👥' },
       { name: 'userSessionHistory', url: EXPORT_URLS.userSessionHistory, handler: handleUserSessionHistoryData, emoji: '📅' },
       { name: 'schedule', url: EXPORT_URLS.schedule, handler: handleScheduleData, emoji: '📋' },
-      { name: 'slaPolicy', url: EXPORT_URLS.slaPolicy, handler: handleSLAPolicyData, emoji: '📊' }
+      { name: 'slaPolicy', url: EXPORT_URLS.slaPolicy, handler: handleSLAPolicyData, emoji: '📊' },
+      { name: 'nocInteractions', url: EXPORT_URLS.nocInteractions, handler: handleNOCInteractionsData, emoji: '🔄' }
     ];
     
     for (let i = 0; i < importTasks.length; i++) {
@@ -364,7 +389,7 @@ app.get('/table-info', async (req, res) => {
     const connection = getConnection();
     
     // Get table structures and row counts
-    const tables = ['Buildings', 'Cases', 'Conversations', 'Interactions', 'UserStateInteractions', 'Users', 'UserSessionHistory', 'Schedule', 'SLAPolicy'];
+    const tables = ['Buildings', 'Cases', 'Conversations', 'Interactions', 'UserStateInteractions', 'Users', 'UserSessionHistory', 'Schedule', 'SLAPolicy', 'NOCInteractions'];
     const tableInfo = {};
     
     for (const table of tables) {
@@ -410,6 +435,7 @@ app.get('/health', (req, res) => {
 
 // Table reset routes (keeping the original functionality)
 const tableResetRoutes = [
+  { path: '/reset-buildings-table', table: 'Buildings', createFunction: 'createBuildingsTable' },
   { path: '/reset-cases-table', table: 'Cases', createFunction: 'createCasesTable' },
   { path: '/reset-conversations-table', table: 'Conversations', createFunction: 'createConversationsTable' },
   { path: '/reset-interactions-table', table: 'Interactions', createFunction: 'createInteractionsTable' },
@@ -417,7 +443,8 @@ const tableResetRoutes = [
   { path: '/reset-users-table', table: 'Users', createFunction: 'createUsersTable' },
   { path: '/reset-user-session-history-table', table: 'UserSessionHistory', createFunction: 'createUserSessionHistoryTable' },
   { path: '/reset-schedule-table', table: 'Schedule', createFunction: 'createScheduleTable' },
-  { path: '/reset-sla-policy-table', table: 'SLAPolicy', createFunction: 'createSLAPolicyTable' }
+  { path: '/reset-sla-policy-table', table: 'SLAPolicy', createFunction: 'createSLAPolicyTable' },
+  { path: '/reset-noc-interactions-table', table: 'NOCInteractions', createFunction: 'createNOCInteractionsTable' }
 ];
 
 // Dynamically create reset routes
