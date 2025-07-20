@@ -1,4 +1,6 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const { SERVER_CONFIG, EXPORT_URLS } = require('./config');
 const { initDatabase, getConnection, closeDatabase } = require('./database');
 const {
@@ -33,11 +35,104 @@ const PORT = SERVER_CONFIG.port;
 // Global variable to store the cron job reference
 let scheduledImportJob = null;
 
+// Logging configuration
+const LOG_CONFIG = {
+  logDirectory: './logs',
+  logFileName: 'express-server.log',
+  maxLogSizeBytes: 10 * 1024 * 1024, // 10MB
+  keepLogDays: 30
+};
+
+// Ensure log directory exists
+function ensureLogDirectory() {
+  if (!fs.existsSync(LOG_CONFIG.logDirectory)) {
+    fs.mkdirSync(LOG_CONFIG.logDirectory, { recursive: true });
+  }
+}
+
+// Get current log file path with date
+function getCurrentLogFilePath() {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const fileName = `${today}-${LOG_CONFIG.logFileName}`;
+  return path.join(LOG_CONFIG.logDirectory, fileName);
+}
+
+// Custom logger that writes to both console and file
+function logger(message, level = 'INFO') {
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] [${level}] ${message}`;
+  
+  // Write to console
+  console.log(message);
+  
+  // Write to file
+  try {
+    ensureLogDirectory();
+    const logFilePath = getCurrentLogFilePath();
+    fs.appendFileSync(logFilePath, logEntry + '\n', 'utf8');
+  } catch (error) {
+    console.error('Failed to write to log file:', error.message);
+  }
+}
+
+// Custom error logger
+function logError(message, error = null) {
+  const errorMessage = error ? `${message}: ${error.message}` : message;
+  logger(errorMessage, 'ERROR');
+}
+
+// Clean up old log files
+function cleanupOldLogs() {
+  try {
+    const files = fs.readdirSync(LOG_CONFIG.logDirectory);
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - LOG_CONFIG.keepLogDays);
+    
+    files.forEach(file => {
+      const filePath = path.join(LOG_CONFIG.logDirectory, file);
+      const stats = fs.statSync(filePath);
+      
+      if (stats.mtime < cutoffDate && file.endsWith('.log')) {
+        fs.unlinkSync(filePath);
+        logger(`Deleted old log file: ${file}`);
+      }
+    });
+  } catch (error) {
+    logError('Failed to cleanup old logs', error);
+  }
+}
+
+// Function to read recent logs (utility function)
+function getRecentLogs(lines = 50) {
+  try {
+    const logFilePath = getCurrentLogFilePath();
+    if (!fs.existsSync(logFilePath)) {
+      return 'No log file found for today.';
+    }
+    
+    const logContent = fs.readFileSync(logFilePath, 'utf8');
+    const logLines = logContent.split('\n').filter(line => line.trim());
+    const recentLines = logLines.slice(-lines);
+    
+    return recentLines.join('\n');
+  } catch (error) {
+    logError('Failed to read recent logs', error);
+    return 'Error reading log file.';
+  }
+}
+
 // Middleware
 app.use(express.json());
 
+// Middleware to log all requests
+app.use((req, res, next) => {
+  logger(`${req.method} ${req.path} - ${req.ip}`, 'REQUEST');
+  next();
+});
+
 // Root route with API documentation
 app.get('/', (req, res) => {
+  logger('API documentation requested');
   res.json({ 
     message: 'CSV Import Server Running',
     version: '2.0.0',
@@ -54,7 +149,8 @@ app.get('/', (req, res) => {
       'GET /import-sla-policy - Import SLA Policy data',
       'GET /import-all - Import all data types',
       'GET /table-info - View table structures and row counts',
-      'GET /health - Health check'
+      'GET /health - Health check',
+      'GET /logs - View recent server logs'
     ],
     resetEndpoints: [
       'GET /reset-cases-table - Reset Cases table structure',
@@ -65,8 +161,36 @@ app.get('/', (req, res) => {
       'GET /reset-user-session-history-table - Reset UserSessionHistory table structure',
       'GET /reset-schedule-table - Reset Schedule table structure',
       'GET /reset-sla-policy-table - Reset SLAPolicy table structure'
+    ],
+    schedulerEndpoints: [
+      'GET /scheduler/status - Get scheduler status',
+      'POST /scheduler/start - Start scheduled imports',
+      'POST /scheduler/stop - Stop scheduled imports',
+      'POST /scheduler/trigger - Trigger manual import'
     ]
   });
+});
+
+// New route to view recent logs
+app.get('/logs', (req, res) => {
+  try {
+    const lines = req.query.lines ? parseInt(req.query.lines) : 50;
+    const logs = getRecentLogs(lines);
+    
+    res.json({
+      success: true,
+      logFile: getCurrentLogFilePath(),
+      recentLogs: logs,
+      message: `Last ${lines} log entries`
+    });
+  } catch (error) {
+    logError('Failed to retrieve logs', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve logs',
+      error: error.message
+    });
+  }
 });
 
 // Individual import routes
@@ -74,20 +198,23 @@ app.get('/import-buildings', async (req, res) => {
   const startTime = Date.now();
   
   try {
-    console.log('🏢 Starting buildings import...');
+    logger('🏢 Starting buildings import...');
     const buildingsData = await downloadAndParseCSV(EXPORT_URLS.buildings, 'buildings');
     await saveBuildingsData(buildingsData);
     
     logProcessingSummary('buildings', startTime, buildingsData.length);
     
-    res.json({
+    const response = {
       success: true,
       message: 'Buildings data imported successfully',
       recordsProcessed: buildingsData.length,
       duration: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
-    });
+    };
+    
+    logger(`🏢 Buildings import completed - ${buildingsData.length} records processed`);
+    res.json(response);
   } catch (error) {
-    console.error('🏢 Buildings import failed:', error);
+    logError('🏢 Buildings import failed', error);
     const errorResponse = handleCSVError(error, 'buildings');
     res.status(500).json(errorResponse);
   }
@@ -97,20 +224,23 @@ app.get('/import-cases', async (req, res) => {
   const startTime = Date.now();
   
   try {
-    console.log('📋 Starting cases import...');
+    logger('📋 Starting cases import...');
     const casesData = await downloadAndParseCSV(EXPORT_URLS.cases, 'cases');
     await handleCasesData(casesData);
     
     logProcessingSummary('cases', startTime, casesData.length);
     
-    res.json({
+    const response = {
       success: true,
       message: 'Cases data processed successfully',
       recordsProcessed: casesData.length,
       duration: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
-    });
+    };
+    
+    logger(`📋 Cases import completed - ${casesData.length} records processed`);
+    res.json(response);
   } catch (error) {
-    console.error('📋 Cases import failed:', error);
+    logError('📋 Cases import failed', error);
     const errorResponse = handleCSVError(error, 'cases');
     res.status(500).json(errorResponse);
   }
@@ -120,20 +250,23 @@ app.get('/import-conversations', async (req, res) => {
   const startTime = Date.now();
   
   try {
-    console.log('💬 Starting conversations import...');
+    logger('💬 Starting conversations import...');
     const conversationsData = await downloadAndParseCSV(EXPORT_URLS.conversations, 'conversations');
     await handleConversationsData(conversationsData);
     
     logProcessingSummary('conversations', startTime, conversationsData.length);
     
-    res.json({
+    const response = {
       success: true,
       message: 'Conversations data processed successfully',
       recordsProcessed: conversationsData.length,
       duration: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
-    });
+    };
+    
+    logger(`💬 Conversations import completed - ${conversationsData.length} records processed`);
+    res.json(response);
   } catch (error) {
-    console.error('💬 Conversations import failed:', error);
+    logError('💬 Conversations import failed', error);
     const errorResponse = handleCSVError(error, 'conversations');
     res.status(500).json(errorResponse);
   }
@@ -143,20 +276,23 @@ app.get('/import-interactions', async (req, res) => {
   const startTime = Date.now();
   
   try {
-    console.log('🔄 Starting interactions import...');
+    logger('🔄 Starting interactions import...');
     const interactionsData = await downloadAndParseCSV(EXPORT_URLS.interactions, 'interactions');
     await handleInteractionsData(interactionsData);
     
     logProcessingSummary('interactions', startTime, interactionsData.length);
     
-    res.json({
+    const response = {
       success: true,
       message: 'Interactions data processed successfully',
       recordsProcessed: interactionsData.length,
       duration: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
-    });
+    };
+    
+    logger(`🔄 Interactions import completed - ${interactionsData.length} records processed`);
+    res.json(response);
   } catch (error) {
-    console.error('🔄 Interactions import failed:', error);
+    logError('🔄 Interactions import failed', error);
     const errorResponse = handleCSVError(error, 'interactions');
     res.status(500).json(errorResponse);
   }
@@ -166,20 +302,23 @@ app.get('/import-user-state-interactions', async (req, res) => {
   const startTime = Date.now();
   
   try {
-    console.log('👤 Starting user state interactions import...');
+    logger('👤 Starting user state interactions import...');
     const userStateInteractionsData = await downloadAndParseCSV(EXPORT_URLS.userStateInteractions, 'user state interactions');
     await handleUserStateInteractionsData(userStateInteractionsData);
     
     logProcessingSummary('user state interactions', startTime, userStateInteractionsData.length);
     
-    res.json({
+    const response = {
       success: true,
       message: 'User state interactions data processed successfully',
       recordsProcessed: userStateInteractionsData.length,
       duration: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
-    });
+    };
+    
+    logger(`👤 User state interactions import completed - ${userStateInteractionsData.length} records processed`);
+    res.json(response);
   } catch (error) {
-    console.error('👤 User state interactions import failed:', error);
+    logError('👤 User state interactions import failed', error);
     const errorResponse = handleCSVError(error, 'user state interactions');
     res.status(500).json(errorResponse);
   }
@@ -189,20 +328,23 @@ app.get('/import-users', async (req, res) => {
   const startTime = Date.now();
   
   try {
-    console.log('👥 Starting users import...');
+    logger('👥 Starting users import...');
     const usersData = await downloadAndParseCSV(EXPORT_URLS.users, 'users');
     await handleUsersData(usersData);
     
     logProcessingSummary('users', startTime, usersData.length);
     
-    res.json({
+    const response = {
       success: true,
       message: 'Users data processed successfully',
       recordsProcessed: usersData.length,
       duration: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
-    });
+    };
+    
+    logger(`👥 Users import completed - ${usersData.length} records processed`);
+    res.json(response);
   } catch (error) {
-    console.error('👥 Users import failed:', error);
+    logError('👥 Users import failed', error);
     const errorResponse = handleCSVError(error, 'users');
     res.status(500).json(errorResponse);
   }
@@ -212,20 +354,23 @@ app.get('/import-user-session-history', async (req, res) => {
   const startTime = Date.now();
   
   try {
-    console.log('📅 Starting user session history import...');
+    logger('📅 Starting user session history import...');
     const userSessionHistoryData = await downloadAndParseCSV(EXPORT_URLS.userSessionHistory, 'user session history');
     await handleUserSessionHistoryData(userSessionHistoryData);
     
     logProcessingSummary('user session history', startTime, userSessionHistoryData.length);
     
-    res.json({
+    const response = {
       success: true,
       message: 'User session history data processed successfully',
       recordsProcessed: userSessionHistoryData.length,
       duration: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
-    });
+    };
+    
+    logger(`📅 User session history import completed - ${userSessionHistoryData.length} records processed`);
+    res.json(response);
   } catch (error) {
-    console.error('📅 User session history import failed:', error);
+    logError('📅 User session history import failed', error);
     const errorResponse = handleCSVError(error, 'user session history');
     res.status(500).json(errorResponse);
   }
@@ -235,20 +380,23 @@ app.get('/import-schedule', async (req, res) => {
   const startTime = Date.now();
   
   try {
-    console.log('📋 Starting schedule import...');
+    logger('📋 Starting schedule import...');
     const scheduleData = await downloadAndParseCSV(EXPORT_URLS.schedule, 'schedule');
     await handleScheduleData(scheduleData);
     
     logProcessingSummary('schedule', startTime, scheduleData.length);
     
-    res.json({
+    const response = {
       success: true,
       message: 'Schedule data processed successfully',
       recordsProcessed: scheduleData.length,
       duration: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
-    });
+    };
+    
+    logger(`📋 Schedule import completed - ${scheduleData.length} records processed`);
+    res.json(response);
   } catch (error) {
-    console.error('📋 Schedule import failed:', error);
+    logError('📋 Schedule import failed', error);
     const errorResponse = handleCSVError(error, 'schedule');
     res.status(500).json(errorResponse);
   }
@@ -258,20 +406,23 @@ app.get('/import-sla-policy', async (req, res) => {
   const startTime = Date.now();
   
   try {
-    console.log('📊 Starting SLA Policy import...');
+    logger('📊 Starting SLA Policy import...');
     const slaPolicyData = await downloadAndParseCSV(EXPORT_URLS.slaPolicy, 'SLA Policy');
     await handleSLAPolicyData(slaPolicyData);
     
     logProcessingSummary('SLA Policy', startTime, slaPolicyData.length);
     
-    res.json({
+    const response = {
       success: true,
       message: 'SLA Policy data processed successfully',
       recordsProcessed: slaPolicyData.length,
       duration: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
-    });
+    };
+    
+    logger(`📊 SLA Policy import completed - ${slaPolicyData.length} records processed`);
+    res.json(response);
   } catch (error) {
-    console.error('📊 SLA Policy import failed:', error);
+    logError('📊 SLA Policy import failed', error);
     const errorResponse = handleCSVError(error, 'SLA Policy');
     res.status(500).json(errorResponse);
   }
@@ -281,20 +432,23 @@ app.get('/import-noc-interactions', async (req, res) => {
   const startTime = Date.now();
   
   try {
-    console.log('🔄 Starting NOC interactions import...');
+    logger('🔄 Starting NOC interactions import...');
     const nocInteractionsData = await downloadAndParseCSV(EXPORT_URLS.nocInteractions, 'NOC interactions');
     await handleNOCInteractionsData(nocInteractionsData);
     
     logProcessingSummary('NOC interactions', startTime, nocInteractionsData.length);
     
-    res.json({
+    const response = {
       success: true,
       message: 'NOC interactions data processed successfully',
       recordsProcessed: nocInteractionsData.length,
       duration: `${((Date.now() - startTime) / 1000).toFixed(2)}s`
-    });
+    };
+    
+    logger(`🔄 NOC interactions import completed - ${nocInteractionsData.length} records processed`);
+    res.json(response);
   } catch (error) {
-    console.error('🔄 NOC interactions import failed:', error);
+    logError('🔄 NOC interactions import failed', error);
     const errorResponse = handleCSVError(error, 'NOC interactions');
     res.status(500).json(errorResponse);
   }
@@ -306,7 +460,7 @@ app.get('/import-all', async (req, res) => {
   const results = {};
   
   try {
-    console.log('🚀 Starting full import...');
+    logger('🚀 Starting full import...');
     
     const importTasks = [
       { name: 'buildings', url: EXPORT_URLS.buildings, handler: saveBuildingsData, emoji: '🏢' },
@@ -326,7 +480,7 @@ app.get('/import-all', async (req, res) => {
       const taskStartTime = Date.now();
       
       try {
-        console.log(`${task.emoji} Phase ${i + 1}: Importing ${task.name}...`);
+        logger(`${task.emoji} Phase ${i + 1}: Importing ${task.name}...`);
         const data = await downloadAndParseCSV(task.url, task.name);
         await task.handler(data);
         
@@ -340,7 +494,7 @@ app.get('/import-all', async (req, res) => {
         logProcessingSummary(task.name, taskStartTime, data.length);
         
       } catch (error) {
-        console.error(`${task.emoji} Failed to import ${task.name}:`, error.message);
+        logError(`${task.emoji} Failed to import ${task.name}`, error);
         results[task.name] = {
           success: false,
           error: error.message,
@@ -353,10 +507,10 @@ app.get('/import-all', async (req, res) => {
     const totalDuration = Date.now() - overallStartTime;
     const report = createProcessingReport(results);
     
-    console.log('\n🎉 FULL IMPORT COMPLETED 🎉');
-    console.log(`Total duration: ${(totalDuration / 1000).toFixed(2)} seconds`);
-    console.log(`Overall success rate: ${report.successRate}`);
-    console.log(`Total records processed: ${report.totalRecords}`);
+    logger('\n🎉 FULL IMPORT COMPLETED 🎉');
+    logger(`Total duration: ${(totalDuration / 1000).toFixed(2)} seconds`);
+    logger(`Overall success rate: ${report.successRate}`);
+    logger(`Total records processed: ${report.totalRecords}`);
     
     res.json({
       success: report.overallSuccess,
@@ -367,7 +521,7 @@ app.get('/import-all', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('🚀 Full import failed:', error);
+    logError('🚀 Full import failed', error);
     res.status(500).json({
       success: false,
       message: 'Full import failed',
@@ -380,10 +534,12 @@ app.get('/import-all', async (req, res) => {
 // API testing route
 app.get('/test-api', async (req, res) => {
   try {
+    logger('🔍 Starting API connectivity test...');
     const testResults = await testAllAPIEndpoints(EXPORT_URLS);
+    logger('🔍 API connectivity test completed');
     res.json(testResults);
   } catch (error) {
-    console.error('🔍 API test failed:', error);
+    logError('🔍 API test failed', error);
     res.status(500).json({
       success: false,
       message: 'API test failed',
@@ -395,6 +551,7 @@ app.get('/test-api', async (req, res) => {
 // Table information route
 app.get('/table-info', async (req, res) => {
   try {
+    logger('📊 Retrieving table information...');
     const connection = getConnection();
     
     // Get table structures and row counts
@@ -418,12 +575,13 @@ app.get('/table-info', async (req, res) => {
       }
     }
     
+    logger('📊 Table information retrieved successfully');
     res.json({
       success: true,
       tables: tableInfo
     });
   } catch (error) {
-    console.error('Error getting table info:', error);
+    logError('Error getting table info', error);
     res.status(500).json({
       success: false,
       message: 'Failed to get table information',
@@ -434,28 +592,39 @@ app.get('/table-info', async (req, res) => {
 
 // Health check route
 app.get('/health', (req, res) => {
-  res.json({ 
+  const healthData = { 
     status: 'OK', 
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     version: '2.0.0',
-    scheduler: getSchedulerStatus()
-  });
+    scheduler: getSchedulerStatus(),
+    logging: {
+      logDirectory: LOG_CONFIG.logDirectory,
+      currentLogFile: getCurrentLogFilePath()
+    }
+  };
+  
+  logger('Health check requested');
+  res.json(healthData);
 });
 
 // Scheduler management routes
 app.get('/scheduler/status', (req, res) => {
   try {
     const status = getSchedulerStatus();
-    res.json({
+    const response = {
       success: true,
       scheduler: {
         ...status,
         isRunning: scheduledImportJob !== null,
         lastCheck: new Date().toISOString()
       }
-    });
+    };
+    
+    logger('Scheduler status requested');
+    res.json(response);
   } catch (error) {
+    logError('Failed to get scheduler status', error);
     res.status(500).json({
       success: false,
       message: 'Failed to get scheduler status',
@@ -467,6 +636,7 @@ app.get('/scheduler/status', (req, res) => {
 app.post('/scheduler/start', (req, res) => {
   try {
     if (scheduledImportJob) {
+      logger('Attempt to start scheduler that is already running');
       return res.json({
         success: false,
         message: 'Scheduler is already running'
@@ -474,6 +644,7 @@ app.post('/scheduler/start', (req, res) => {
     }
     
     scheduledImportJob = startScheduledImports();
+    logger('Scheduled daily imports started successfully');
     
     res.json({
       success: true,
@@ -481,6 +652,7 @@ app.post('/scheduler/start', (req, res) => {
       schedule: 'Daily at 2:00 AM (Africa/Johannesburg)'
     });
   } catch (error) {
+    logError('Failed to start scheduler', error);
     res.status(500).json({
       success: false,
       message: 'Failed to start scheduler',
@@ -492,6 +664,7 @@ app.post('/scheduler/start', (req, res) => {
 app.post('/scheduler/stop', (req, res) => {
   try {
     if (!scheduledImportJob) {
+      logger('Attempt to stop scheduler when none is running');
       return res.json({
         success: false,
         message: 'No scheduled imports are currently running'
@@ -500,12 +673,14 @@ app.post('/scheduler/stop', (req, res) => {
     
     stopScheduledImports(scheduledImportJob);
     scheduledImportJob = null;
+    logger('Scheduled imports stopped successfully');
     
     res.json({
       success: true,
       message: 'Scheduled imports stopped successfully'
     });
   } catch (error) {
+    logError('Failed to stop scheduler', error);
     res.status(500).json({
       success: false,
       message: 'Failed to stop scheduler',
@@ -516,17 +691,20 @@ app.post('/scheduler/stop', (req, res) => {
 
 app.post('/scheduler/trigger', async (req, res) => {
   try {
-    console.log('🔧 Manual import triggered via API...');
+    logger('🔧 Manual import triggered via API...');
     const result = await triggerManualImport();
     
-    res.json({
+    const response = {
       success: result.success,
       message: result.success ? 'Manual import completed successfully' : 'Manual import completed with errors',
       report: result.report,
       duration: `${(result.duration / 1000 / 60).toFixed(2)} minutes`
-    });
+    };
+    
+    logger(`Manual import completed via API - Success: ${result.success}`);
+    res.json(response);
   } catch (error) {
-    console.error('💥 Manual import failed via API:', error);
+    logError('💥 Manual import failed via API', error);
     res.status(500).json({
       success: false,
       message: 'Manual import failed',
@@ -553,26 +731,29 @@ const tableResetRoutes = [
 tableResetRoutes.forEach(route => {
   app.get(route.path, async (req, res) => {
     try {
-      console.log(`🔄 Resetting ${route.table} table structure...`);
+      logger(`🔄 Resetting ${route.table} table structure...`);
       
       const connection = getConnection();
       
       // Drop existing table
       await connection.execute(`DROP TABLE IF EXISTS ${route.table}`);
-      console.log(`✓ Dropped old ${route.table} table`);
+      logger(`✓ Dropped old ${route.table} table`);
       
       // Recreate table - we need to import the specific function
       const { [route.createFunction]: createFunction } = require('./database');
       await createFunction();
-      console.log(`✓ Created new ${route.table} table`);
+      logger(`✓ Created new ${route.table} table`);
       
-      res.json({
+      const response = {
         success: true,
         message: `${route.table} table reset successfully with updated structure`,
         note: 'Table recreated with proper schema'
-      });
+      };
+      
+      logger(`${route.table} table reset completed successfully`);
+      res.json(response);
     } catch (error) {
-      console.error(`🔄 Failed to reset ${route.table} table:`, error);
+      logError(`🔄 Failed to reset ${route.table} table`, error);
       res.status(500).json({
         success: false,
         message: `Failed to reset ${route.table} table`,
@@ -584,7 +765,7 @@ tableResetRoutes.forEach(route => {
 
 // Error handling middleware
 app.use((error, req, res, next) => {
-  console.error('Unhandled error:', error);
+  logError('Unhandled error', error);
   res.status(500).json({
     success: false,
     message: 'Internal server error',
@@ -594,6 +775,7 @@ app.use((error, req, res, next) => {
 
 // 404 handler
 app.use((req, res) => {
+  logger(`404 - Endpoint not found: ${req.method} ${req.path}`, 'WARN');
   res.status(404).json({
     success: false,
     message: 'Endpoint not found',
@@ -603,7 +785,7 @@ app.use((req, res) => {
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('Shutting down gracefully...');
+  logger('Shutting down gracefully...');
   if (scheduledImportJob) {
     stopScheduledImports(scheduledImportJob);
   }
@@ -612,7 +794,7 @@ process.on('SIGINT', async () => {
 });
 
 process.on('SIGTERM', async () => {
-  console.log('Received SIGTERM, shutting down gracefully...');
+  logger('Received SIGTERM, shutting down gracefully...');
   if (scheduledImportJob) {
     stopScheduledImports(scheduledImportJob);
   }
@@ -625,34 +807,39 @@ async function startServer() {
   try {
     await initDatabase();
     
+    // Clean up old logs on startup
+    cleanupOldLogs();
+    
     const server = app.listen(PORT, () => {
-      console.log(`🚀 CSV Import Server v2.0.0 running on port ${PORT}`);
-      console.log(`📖 Visit http://localhost:${PORT} for API documentation`);
-      console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-      console.log(`🔍 Test APIs: http://localhost:${PORT}/test-api`);
-      console.log(`📅 Scheduler status: http://localhost:${PORT}/scheduler/status`);
+      logger(`🚀 CSV Import Server v2.0.0 running on port ${PORT}`);
+      logger(`📖 Visit http://localhost:${PORT} for API documentation`);
+      logger(`🏥 Health check: http://localhost:${PORT}/health`);
+      logger(`🔍 Test APIs: http://localhost:${PORT}/test-api`);
+      logger(`📅 Scheduler status: http://localhost:${PORT}/scheduler/status`);
+      logger(`📋 View logs: http://localhost:${PORT}/logs`);
+      logger(`📁 Log files are saved to: ${LOG_CONFIG.logDirectory}`);
       
       // Optionally start scheduler automatically (uncomment if desired)
-      // console.log('\n📅 Starting automatic daily import scheduler...');
+      // logger('\n📅 Starting automatic daily import scheduler...');
       // scheduledImportJob = startScheduledImports();
     });
     
     server.on('error', (error) => {
       if (error.code === 'EADDRINUSE') {
-        console.error(`❌ Port ${PORT} is already in use. Please:`);
-        console.error('1. Check if another application is using this port');
-        console.error('2. Kill any process using this port, or');
-        console.error('3. Set EXPRESS_PORT=3001 in your .env file to use a different port');
+        logError(`❌ Port ${PORT} is already in use. Please:`);
+        logError('1. Check if another application is using this port');
+        logError('2. Kill any process using this port, or');
+        logError('3. Set EXPRESS_PORT=3001 in your .env file to use a different port');
         process.exit(1);
       } else {
-        console.error('❌ Server error:', error);
+        logError('❌ Server error', error);
         process.exit(1);
       }
     });
     
     return server;
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    logError('❌ Failed to start server', error);
     process.exit(1);
   }
 }
@@ -662,4 +849,11 @@ if (require.main === module) {
   startServer();
 }
 
-module.exports = { app, startServer };
+module.exports = { 
+  app, 
+  startServer, 
+  logger, 
+  logError, 
+  getRecentLogs,
+  LOG_CONFIG 
+};
