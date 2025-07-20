@@ -1,4 +1,6 @@
 const cron = require('node-cron');
+const fs = require('fs');
+const path = require('path');
 const { EXPORT_URLS } = require('./config');
 const {
   saveBuildingsData,
@@ -17,6 +19,73 @@ const {
   createProcessingReport,
   logProcessingSummary
 } = require('./csvUtils');
+
+// Logging configuration
+const LOG_CONFIG = {
+  logDirectory: './logs',
+  logFileName: 'import-scheduler.log',
+  maxLogSizeBytes: 10 * 1024 * 1024, // 10MB
+  keepLogDays: 30
+};
+
+// Ensure log directory exists
+function ensureLogDirectory() {
+  if (!fs.existsSync(LOG_CONFIG.logDirectory)) {
+    fs.mkdirSync(LOG_CONFIG.logDirectory, { recursive: true });
+  }
+}
+
+// Get current log file path with date
+function getCurrentLogFilePath() {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const fileName = `${today}-${LOG_CONFIG.logFileName}`;
+  return path.join(LOG_CONFIG.logDirectory, fileName);
+}
+
+// Custom logger that writes to both console and file
+function logger(message, level = 'INFO') {
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] [${level}] ${message}`;
+  
+  // Write to console
+  console.log(message);
+  
+  // Write to file
+  try {
+    ensureLogDirectory();
+    const logFilePath = getCurrentLogFilePath();
+    fs.appendFileSync(logFilePath, logEntry + '\n', 'utf8');
+  } catch (error) {
+    console.error('Failed to write to log file:', error.message);
+  }
+}
+
+// Custom error logger
+function logError(message, error = null) {
+  const errorMessage = error ? `${message}: ${error.message}` : message;
+  logger(errorMessage, 'ERROR');
+}
+
+// Clean up old log files
+function cleanupOldLogs() {
+  try {
+    const files = fs.readdirSync(LOG_CONFIG.logDirectory);
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - LOG_CONFIG.keepLogDays);
+    
+    files.forEach(file => {
+      const filePath = path.join(LOG_CONFIG.logDirectory, file);
+      const stats = fs.statSync(filePath);
+      
+      if (stats.mtime < cutoffDate && file.endsWith('.log')) {
+        fs.unlinkSync(filePath);
+        logger(`Deleted old log file: ${file}`);
+      }
+    });
+  } catch (error) {
+    logError('Failed to cleanup old logs', error);
+  }
+}
 
 // Cron job configuration
 const CRON_CONFIG = {
@@ -38,8 +107,11 @@ async function performFullImport() {
   const overallStartTime = Date.now();
   const results = {};
   
-  console.log('\n🤖 === AUTOMATED DAILY IMPORT STARTED ===');
-  console.log(`⏰ Started at: ${new Date().toLocaleString()}`);
+  logger('\n🤖 === AUTOMATED DAILY IMPORT STARTED ===');
+  logger(`⏰ Started at: ${new Date().toLocaleString()}`);
+  
+  // Clean up old logs at the start of each import
+  cleanupOldLogs();
   
   const importTasks = [
     { name: 'buildings', url: EXPORT_URLS.buildings, handler: saveBuildingsData, emoji: '🏢' },
@@ -59,7 +131,7 @@ async function performFullImport() {
     const taskStartTime = Date.now();
     
     try {
-      console.log(`${task.emoji} Phase ${i + 1}/10: Importing ${task.name}...`);
+      logger(`${task.emoji} Phase ${i + 1}/10: Importing ${task.name}...`);
       const data = await downloadAndParseCSV(task.url, task.name);
       await task.handler(data);
       
@@ -71,10 +143,10 @@ async function performFullImport() {
       };
       
       logProcessingSummary(task.name, taskStartTime, data.length);
-      console.log(`✅ ${task.emoji} ${task.name} completed successfully`);
+      logger(`✅ ${task.emoji} ${task.name} completed successfully`);
       
     } catch (error) {
-      console.error(`❌ ${task.emoji} Failed to import ${task.name}:`, error.message);
+      logError(`❌ ${task.emoji} Failed to import ${task.name}`, error);
       results[task.name] = {
         success: false,
         error: error.message,
@@ -88,19 +160,19 @@ async function performFullImport() {
   const report = createProcessingReport(results);
   
   // Log final summary
-  console.log('\n🎉 === AUTOMATED DAILY IMPORT COMPLETED ===');
-  console.log(`⏰ Completed at: ${new Date().toLocaleString()}`);
-  console.log(`⏱️ Total duration: ${(totalDuration / 1000 / 60).toFixed(2)} minutes`);
-  console.log(`📊 Overall success rate: ${report.successRate}`);
-  console.log(`📈 Total records processed: ${report.totalRecords}`);
+  logger('\n🎉 === AUTOMATED DAILY IMPORT COMPLETED ===');
+  logger(`⏰ Completed at: ${new Date().toLocaleString()}`);
+  logger(`⏱️ Total duration: ${(totalDuration / 1000 / 60).toFixed(2)} minutes`);
+  logger(`📊 Overall success rate: ${report.successRate}`);
+  logger(`📈 Total records processed: ${report.totalRecords}`);
   
   // Log any failures
   const failures = Object.entries(results).filter(([_, result]) => !result.success);
   if (failures.length > 0) {
-    console.log(`⚠️ Failed imports: ${failures.map(([name]) => name).join(', ')}`);
+    logger(`⚠️ Failed imports: ${failures.map(([name]) => name).join(', ')}`);
   }
   
-  console.log('================================================\n');
+  logger('================================================\n');
   
   return {
     success: report.overallSuccess,
@@ -119,7 +191,7 @@ async function sendNotification(importResult) {
     ? `✅ Daily import completed successfully in ${(duration / 1000 / 60).toFixed(2)} minutes. ${report.totalRecords} records processed.`
     : `❌ Daily import completed with errors. Success rate: ${report.successRate}. Check logs for details.`;
   
-  console.log(`📢 NOTIFICATION: ${message}`);
+  logger(`📢 NOTIFICATION: ${message}`);
   
   // TODO: Add your notification logic here
   // Examples:
@@ -131,17 +203,17 @@ async function sendNotification(importResult) {
 
 // Schedule the daily import job
 function startScheduledImports() {
-  console.log('📅 Setting up scheduled data imports...');
-  console.log(`🕐 Daily import scheduled for: ${CRON_CONFIG.dailyImport} (${CRON_CONFIG.timezone})`);
+  logger('📅 Setting up scheduled data imports...');
+  logger(`🕐 Daily import scheduled for: ${CRON_CONFIG.dailyImport} (${CRON_CONFIG.timezone})`);
   
   // Daily import cron job
   const dailyImportJob = cron.schedule(CRON_CONFIG.dailyImport, async () => {
     try {
-      console.log('\n🚀 Starting scheduled daily import...');
+      logger('\n🚀 Starting scheduled daily import...');
       const result = await performFullImport();
       await sendNotification(result);
     } catch (error) {
-      console.error('💥 Scheduled import failed:', error);
+      logError('💥 Scheduled import failed', error);
       await sendNotification({
         success: false,
         report: { successRate: '0%', totalRecords: 0 },
@@ -156,7 +228,7 @@ function startScheduledImports() {
   
   // Start the job
   dailyImportJob.start();
-  console.log('✅ Daily import scheduler started successfully');
+  logger('✅ Daily import scheduler started successfully');
   
   return dailyImportJob;
 }
@@ -165,31 +237,55 @@ function startScheduledImports() {
 function stopScheduledImports(job) {
   if (job) {
     job.destroy();
-    console.log('🛑 Scheduled imports stopped');
+    logger('🛑 Scheduled imports stopped');
   }
 }
 
 // Manual trigger function (for testing)
 async function triggerManualImport() {
-  console.log('🔧 Manual import triggered...');
+  logger('🔧 Manual import triggered...');
   try {
     const result = await performFullImport();
     await sendNotification(result);
     return result;
   } catch (error) {
-    console.error('💥 Manual import failed:', error);
+    logError('💥 Manual import failed', error);
     throw error;
   }
 }
 
 // Health check for scheduler
 function getSchedulerStatus() {
-  return {
+  const status = {
     isScheduled: cron.getTasks().size > 0,
     nextRun: 'Daily at 2:00 AM (Africa/Johannesburg)',
     timezone: CRON_CONFIG.timezone,
-    schedule: CRON_CONFIG.dailyImport
+    schedule: CRON_CONFIG.dailyImport,
+    logDirectory: LOG_CONFIG.logDirectory,
+    currentLogFile: getCurrentLogFilePath()
   };
+  
+  logger(`📊 Scheduler Status: ${JSON.stringify(status, null, 2)}`);
+  return status;
+}
+
+// Function to read recent logs (utility function)
+function getRecentLogs(lines = 50) {
+  try {
+    const logFilePath = getCurrentLogFilePath();
+    if (!fs.existsSync(logFilePath)) {
+      return 'No log file found for today.';
+    }
+    
+    const logContent = fs.readFileSync(logFilePath, 'utf8');
+    const logLines = logContent.split('\n').filter(line => line.trim());
+    const recentLines = logLines.slice(-lines);
+    
+    return recentLines.join('\n');
+  } catch (error) {
+    logError('Failed to read recent logs', error);
+    return 'Error reading log file.';
+  }
 }
 
 module.exports = {
@@ -198,5 +294,9 @@ module.exports = {
   triggerManualImport,
   getSchedulerStatus,
   performFullImport,
-  CRON_CONFIG
+  getRecentLogs,
+  logger,
+  logError,
+  CRON_CONFIG,
+  LOG_CONFIG
 };

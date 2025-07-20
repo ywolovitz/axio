@@ -207,3 +207,6 @@ metrics/
 # API documentation generated files
 api-docs/
 swagger-ui/
+
+#logs
+logs
