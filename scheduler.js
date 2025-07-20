@@ -89,7 +89,10 @@ function cleanupOldLogs() {
 
 // Cron job configuration
 const CRON_CONFIG = {
-  // Run daily at 2:00 AM
+  // Run every 3 hours (primary schedule)
+  every3Hours: '0 */3 * * *',
+  
+  // Run daily at 2:00 AM (backup option)
   dailyImport: '0 2 * * *',
   
   // Alternative schedules (uncomment the one you want):
@@ -107,7 +110,7 @@ async function performFullImport() {
   const overallStartTime = Date.now();
   const results = {};
   
-  logger('\n🤖 === AUTOMATED DAILY IMPORT STARTED ===');
+  logger('\n🤖 === AUTOMATED 3-HOURLY IMPORT STARTED ===');
   logger(`⏰ Started at: ${new Date().toLocaleString()}`);
   
   // Clean up old logs at the start of each import
@@ -160,7 +163,7 @@ async function performFullImport() {
   const report = createProcessingReport(results);
   
   // Log final summary
-  logger('\n🎉 === AUTOMATED DAILY IMPORT COMPLETED ===');
+  logger('\n🎉 === AUTOMATED 3-HOURLY IMPORT COMPLETED ===');
   logger(`⏰ Completed at: ${new Date().toLocaleString()}`);
   logger(`⏱️ Total duration: ${(totalDuration / 1000 / 60).toFixed(2)} minutes`);
   logger(`📊 Overall success rate: ${report.successRate}`);
@@ -188,8 +191,8 @@ async function sendNotification(importResult) {
   const { success, report, duration } = importResult;
   
   const message = success 
-    ? `✅ Daily import completed successfully in ${(duration / 1000 / 60).toFixed(2)} minutes. ${report.totalRecords} records processed.`
-    : `❌ Daily import completed with errors. Success rate: ${report.successRate}. Check logs for details.`;
+    ? `✅ 3-hourly import completed successfully in ${(duration / 1000 / 60).toFixed(2)} minutes. ${report.totalRecords} records processed.`
+    : `❌ 3-hourly import completed with errors. Success rate: ${report.successRate}. Check logs for details.`;
   
   logger(`📢 NOTIFICATION: ${message}`);
   
@@ -201,15 +204,16 @@ async function sendNotification(importResult) {
   // - Write to external log service
 }
 
-// Schedule the daily import job
+// Schedule the 3-hourly import job
 function startScheduledImports() {
   logger('📅 Setting up scheduled data imports...');
-  logger(`🕐 Daily import scheduled for: ${CRON_CONFIG.dailyImport} (${CRON_CONFIG.timezone})`);
+  logger(`🕐 3-hourly import scheduled for: ${CRON_CONFIG.every3Hours} (${CRON_CONFIG.timezone})`);
+  logger('⏰ Import will run at: 00:00, 03:00, 06:00, 09:00, 12:00, 15:00, 18:00, 21:00');
   
-  // Daily import cron job
-  const dailyImportJob = cron.schedule(CRON_CONFIG.dailyImport, async () => {
+  // 3-hourly import cron job
+  const importJob = cron.schedule(CRON_CONFIG.every3Hours, async () => {
     try {
-      logger('\n🚀 Starting scheduled daily import...');
+      logger('\n🚀 Starting scheduled 3-hourly import...');
       const result = await performFullImport();
       await sendNotification(result);
     } catch (error) {
@@ -227,10 +231,10 @@ function startScheduledImports() {
   });
   
   // Start the job
-  dailyImportJob.start();
-  logger('✅ Daily import scheduler started successfully');
+  importJob.start();
+  logger('✅ 3-hourly import scheduler started successfully');
   
-  return dailyImportJob;
+  return importJob;
 }
 
 // Function to stop scheduled imports
@@ -258,9 +262,9 @@ async function triggerManualImport() {
 function getSchedulerStatus() {
   const status = {
     isScheduled: cron.getTasks().size > 0,
-    nextRun: 'Daily at 2:00 AM (Africa/Johannesburg)',
+    nextRun: 'Every 3 hours at 00:00, 03:00, 06:00, 09:00, 12:00, 15:00, 18:00, 21:00 (Africa/Johannesburg)',
     timezone: CRON_CONFIG.timezone,
-    schedule: CRON_CONFIG.dailyImport,
+    schedule: CRON_CONFIG.every3Hours,
     logDirectory: LOG_CONFIG.logDirectory,
     currentLogFile: getCurrentLogFilePath()
   };
