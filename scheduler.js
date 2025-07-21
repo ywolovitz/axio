@@ -114,14 +114,14 @@ function cleanupOldLogs() {
 
 // Cron job configuration
 const CRON_CONFIG = {
-  // Run every 3 hours (primary schedule)
-  every3Hours: '0 */3 * * *',
+  // Run every hour (primary schedule)
+  everyHour: '0 * * * *',
   
   // Run daily at 2:00 AM (backup option)
   dailyImport: '0 2 * * *',
   
   // Alternative schedules (uncomment the one you want):
-  // everyHour: '0 * * * *',
+  // every3Hours: '0 */3 * * *',
   // every6Hours: '0 */6 * * *',
   // every12Hours: '0 */12 * * *',
   // weekdays9AM: '0 9 * * 1-5',
@@ -163,7 +163,7 @@ async function performFullImport() {
   const overallStartTime = Date.now();
   const results = {};
   
-  logger('\n🤖 === AUTOMATED 3-HOURLY IMPORT STARTED ===');
+  logger('\n🤖 === AUTOMATED HOURLY IMPORT STARTED ===');
   logger(`⏰ Started at: ${new Date().toLocaleString()}`);
   logMemoryUsage('(Import Start)');
   
@@ -273,7 +273,7 @@ async function performFullImport() {
   const report = createProcessingReport(results);
   
   // Log final summary with special attention to cases
-  logger('\n🎉 === AUTOMATED 3-HOURLY IMPORT COMPLETED ===');
+  logger('\n🎉 === AUTOMATED HOURLY IMPORT COMPLETED ===');
   logger(`⏰ Completed at: ${new Date().toLocaleString()}`);
   logger(`⏱️ Total duration: ${(totalDuration / 1000 / 60).toFixed(2)} minutes`);
   logger(`📊 Overall success rate: ${report.successRate}`);
@@ -320,13 +320,13 @@ async function sendNotification(importResult) {
   
   let message;
   if (success) {
-    message = `✅ 3-hourly import completed successfully in ${(duration / 1000 / 60).toFixed(2)} minutes. ${report.totalRecords.toLocaleString()} records processed.`;
+    message = `✅ Hourly import completed successfully in ${(duration / 1000 / 60).toFixed(2)} minutes. ${report.totalRecords.toLocaleString()} records processed.`;
     
     if (casesSpecificInfo?.success) {
       message += ` Cases: ${casesSpecificInfo.recordsProcessed.toLocaleString()} records.`;
     }
   } else {
-    message = `❌ 3-hourly import completed with errors. Success rate: ${report.successRate}.`;
+    message = `❌ Hourly import completed with errors. Success rate: ${report.successRate}.`;
     
     if (casesSpecificInfo && !casesSpecificInfo.success) {
       message += ` Cases failed: ${casesSpecificInfo.error}`;
@@ -345,17 +345,17 @@ async function sendNotification(importResult) {
   // - Write to external log service
 }
 
-// Schedule the 3-hourly import job
+// Schedule the hourly import job
 function startScheduledImports() {
   logger('📅 Setting up scheduled data imports...');
-  logger(`🕐 3-hourly import scheduled for: ${CRON_CONFIG.every3Hours} (${CRON_CONFIG.timezone})`);
-  logger('⏰ Import will run at: 00:00, 03:00, 06:00, 09:00, 12:00, 15:00, 18:00, 21:00');
+  logger(`🕐 Hourly import scheduled for: ${CRON_CONFIG.everyHour} (${CRON_CONFIG.timezone})`);
+  logger('⏰ Import will run every hour at minute 0 (00:00, 01:00, 02:00, etc.)');
   logger('🎯 Cases import optimized with extended timeouts and retry logic');
   
-  // 3-hourly import cron job
-  const importJob = cron.schedule(CRON_CONFIG.every3Hours, async () => {
+  // Hourly import cron job
+  const importJob = cron.schedule(CRON_CONFIG.everyHour, async () => {
     try {
-      logger('\n🚀 Starting scheduled 3-hourly import...');
+      logger('\n🚀 Starting scheduled hourly import...');
       const result = await performFullImport();
       await sendNotification(result);
     } catch (error) {
@@ -375,7 +375,7 @@ function startScheduledImports() {
   
   // Start the job
   importJob.start();
-  logger('✅ 3-hourly import scheduler started successfully');
+  logger('✅ Hourly import scheduler started successfully');
   
   return importJob;
 }
@@ -406,9 +406,9 @@ function getSchedulerStatus() {
   const memUsage = process.memoryUsage();
   const status = {
     isScheduled: cron.getTasks().size > 0,
-    nextRun: 'Every 3 hours at 00:00, 03:00, 06:00, 09:00, 12:00, 15:00, 18:00, 21:00 (Africa/Johannesburg)',
+    nextRun: 'Every hour at minute 0 (00:00, 01:00, 02:00, etc.) (Africa/Johannesburg)',
     timezone: CRON_CONFIG.timezone,
-    schedule: CRON_CONFIG.every3Hours,
+    schedule: CRON_CONFIG.everyHour,
     logDirectory: LOG_CONFIG.logDirectory,
     currentLogFile: getCurrentLogFilePath(),
     memoryUsage: {
