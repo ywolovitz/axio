@@ -208,5 +208,6 @@ metrics/
 api-docs/
 swagger-ui/
 
-#logs
+#logs 
 logs
+test.py
