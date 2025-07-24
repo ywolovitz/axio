@@ -130,6 +130,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Setup filtered import routes from the separate module
+require('./filteredImport').setupFilteredImportRoutes(app);
+
 // Root route with API documentation
 app.get('/', (req, res) => {
   logger('API documentation requested');
@@ -147,12 +150,16 @@ app.get('/', (req, res) => {
       'GET /import-user-session-history - Import user session history data',
       'GET /import-schedule - Import schedule data',
       'GET /import-sla-policy - Import SLA Policy data',
+      'GET /import-noc-interactions - Import NOC interactions data',
       'GET /import-all - Import all data types',
+      'POST /import-filtered-data - Import data filtered by date range (preserves existing data)',
+      '  Body: { "id": "export_id", "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD" }',
       'GET /table-info - View table structures and row counts',
       'GET /health - Health check',
       'GET /logs - View recent server logs'
     ],
     resetEndpoints: [
+      'GET /reset-buildings-table - Reset Buildings table structure',
       'GET /reset-cases-table - Reset Cases table structure',
       'GET /reset-conversations-table - Reset Conversations table structure',
       'GET /reset-interactions-table - Reset Interactions table structure',
@@ -160,14 +167,38 @@ app.get('/', (req, res) => {
       'GET /reset-users-table - Reset Users table structure',
       'GET /reset-user-session-history-table - Reset UserSessionHistory table structure',
       'GET /reset-schedule-table - Reset Schedule table structure',
-      'GET /reset-sla-policy-table - Reset SLAPolicy table structure'
+      'GET /reset-sla-policy-table - Reset SLAPolicy table structure',
+      'GET /reset-noc-interactions-table - Reset NOCInteractions table structure'
     ],
     schedulerEndpoints: [
       'GET /scheduler/status - Get scheduler status',
       'POST /scheduler/start - Start scheduled imports',
       'POST /scheduler/stop - Stop scheduled imports',
       'POST /scheduler/trigger - Trigger manual import'
-    ]
+    ],
+    filteredImportInfo: {
+      endpoint: 'POST /import-filtered-data',
+      description: 'Import data for specific date ranges while preserving existing records',
+      supportedExportIds: {
+        'buildings': '5077534948',
+        'cases': '5002645397',
+        'conversations': '5002207692',
+        'interactions': '5053863837',
+        'nocInteractions': '5157703494',
+        'userStateInteractions': '4693855982',
+        'users': '5157670999',
+        'userSessionHistory': '5219392695',
+        'schedule': '20348692306',
+        'slaPolicy': '20357111093'
+      },
+      features: [
+        'Data preservation - no existing records deleted',
+        'Duplicate detection and skipping',
+        'JSON export to ./exports/ directory',
+        'Multiple filtering methods (API + pattern matching)',
+        'Comprehensive error handling and validation'
+      ]
+    }
   });
 });
 
@@ -601,6 +632,12 @@ app.get('/health', (req, res) => {
     logging: {
       logDirectory: LOG_CONFIG.logDirectory,
       currentLogFile: getCurrentLogFilePath()
+    },
+    features: {
+      filteredImports: 'enabled',
+      dataPreservation: 'enabled',
+      jsonExports: './exports/',
+      scheduledImports: scheduledImportJob !== null ? 'running' : 'stopped'
     }
   };
   
@@ -644,12 +681,12 @@ app.post('/scheduler/start', (req, res) => {
     }
     
     scheduledImportJob = startScheduledImports();
-    logger('Scheduled daily imports started successfully');
+    logger('Scheduled hourly imports started successfully');
     
     res.json({
       success: true,
-      message: 'Scheduled daily imports started successfully',
-      schedule: 'Daily at 2:00 AM (Africa/Johannesburg)'
+      message: 'Scheduled hourly imports started successfully',
+      schedule: 'Every hour at minute 0 (Africa/Johannesburg)'
     });
   } catch (error) {
     logError('Failed to start scheduler', error);
@@ -818,9 +855,11 @@ async function startServer() {
       logger(`📅 Scheduler status: http://localhost:${PORT}/scheduler/status`);
       logger(`📋 View logs: http://localhost:${PORT}/logs`);
       logger(`📁 Log files are saved to: ${LOG_CONFIG.logDirectory}`);
+      logger(`🔧 Filtered import: POST http://localhost:${PORT}/import-filtered-data`);
+      logger(`💾 JSON exports saved to: ./exports/`);
       
       // Optionally start scheduler automatically (uncomment if desired)
-      // logger('\n📅 Starting automatic daily import scheduler...');
+      // logger('\n📅 Starting automatic hourly import scheduler...');
       // scheduledImportJob = startScheduledImports();
     });
     
