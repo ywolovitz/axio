@@ -2,8 +2,17 @@ const axios = require('axios');
 const csv = require('csv-parser');
 const { HTTP_CONFIG, CSV_CONFIG, LOGGING_CONFIG } = require('./config');
 
-// Enhanced configuration specifically for large datasets like cases
+// Enhanced configuration specifically for large datasets like conversations and cases
 const ENHANCED_CONFIG = {
+  conversations: {
+    timeout: 600000, // 10 minutes for conversations (increased from 3 minutes)
+    parsingTimeout: 900000, // 15 minutes parsing timeout
+    maxRetries: 3,
+    retryDelay: 30000, // 30 seconds between retries
+    chunkSize: 1000, // Process in chunks of 1000
+    progressInterval: 500, // More frequent progress updates
+    description: 'Large conversation dataset - may take significant time'
+  },
   cases: {
     timeout: 300000, // 5 minutes for cases
     parsingTimeout: 600000, // 10 minutes parsing timeout
@@ -11,6 +20,14 @@ const ENHANCED_CONFIG = {
     retryDelay: 30000, // 30 seconds between retries
     chunkSize: 500, // Process in smaller chunks
     progressInterval: 100 // More frequent progress updates for cases
+  },
+  interactions: {
+    timeout: 240000, // 4 minutes for interactions
+    parsingTimeout: 360000, // 6 minutes parsing timeout
+    maxRetries: 3,
+    retryDelay: 20000, // 20 seconds between retries
+    chunkSize: 750, // Medium chunk size
+    progressInterval: 250 // Frequent progress updates
   },
   default: {
     timeout: HTTP_CONFIG.timeout,
@@ -34,6 +51,13 @@ async function downloadAndParseCSV(url, dataType = 'data') {
   
   console.log(`Starting download of ${dataType} (attempt 1/${config.maxRetries + 1})`);
   
+  // Pre-flight check for very large datasets
+  if (['conversations', 'cases', 'interactions'].includes(dataType)) {
+    console.log(`⚠️  Downloading large ${dataType} dataset. This may take several minutes...`);
+    console.log(`  → Timeout set to ${config.timeout/1000} seconds`);
+    console.log(`  → Parsing timeout set to ${config.parsingTimeout/1000} seconds`);
+  }
+  
   for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
     try {
       if (attempt > 0) {
@@ -49,15 +73,26 @@ async function downloadAndParseCSV(url, dataType = 'data') {
         headers: {
           ...HTTP_CONFIG.headers,
           'Connection': 'keep-alive',
-          'Accept-Encoding': 'gzip, deflate'
+          'Accept-Encoding': 'gzip, deflate',
+          // Add specific headers for large downloads
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         },
         maxRedirects: HTTP_CONFIG.maxRedirects,
-        // Add specific settings for large downloads
+        // Enhanced settings for large downloads
         maxContentLength: Infinity,
-        maxBodyLength: Infinity
+        maxBodyLength: Infinity,
+        // Increase buffer sizes for large files
+        maxBuffer: 50 * 1024 * 1024 // 50MB buffer
       });
       
       console.log(`✓ Connected to ${dataType} API, starting download...`);
+      
+      // Log response headers for debugging large downloads
+      if (response.headers['content-length']) {
+        const sizeMB = Math.round(response.headers['content-length'] / 1024 / 1024);
+        console.log(`  → Expected download size: ${sizeMB}MB`);
+      }
       
       return await parseCSVStream(response.data, dataType, config);
       
@@ -69,8 +104,9 @@ async function downloadAndParseCSV(url, dataType = 'data') {
         
         if (attempt < config.maxRetries) {
           console.log(`Will retry with increased timeout...`);
-          // Increase timeout for next attempt
-          config.timeout = Math.min(config.timeout * 1.5, 600000); // Max 10 minutes
+          // Increase timeout for next attempt (max 15 minutes for conversations)
+          const maxTimeout = dataType === 'conversations' ? 900000 : 600000;
+          config.timeout = Math.min(config.timeout * 1.5, maxTimeout);
         }
         continue;
         
@@ -109,6 +145,9 @@ async function parseCSVStream(stream, dataType, config) {
     let rowCount = 0;
     let lastProgressTime = Date.now();
     const startTime = Date.now();
+    let lastMemoryLog = Date.now();
+    
+    console.log(`Starting CSV parsing for ${dataType} with enhanced memory management...`);
     
     // Add timeout for the parsing process
     const timeoutId = setTimeout(() => {
@@ -119,37 +158,75 @@ async function parseCSVStream(stream, dataType, config) {
       .pipe(csv({
         skipEmptyLines: CSV_CONFIG.skipEmptyLines,
         skipLinesWithError: CSV_CONFIG.skipLinesWithError,
-        // Additional options for better parsing
+        // Additional options for better parsing of large files
         mapHeaders: ({ header }) => header.trim(), // Clean headers
-        maxRowBytes: 1048576 // 1MB max row size
+        maxRowBytes: 2097152, // 2MB max row size (increased for large text fields)
+        // Enable streaming mode for better memory usage
+        objectMode: true,
+        highWaterMark: 16 // Reduce buffer size to use less memory
       }))
       .on('data', (data) => {
         results.push(data);
         rowCount++;
         
-        // Enhanced progress logging with time estimation
+        // Enhanced progress logging with memory monitoring
         if (rowCount % config.progressInterval === 0) {
           const now = Date.now();
           const elapsedSeconds = (now - startTime) / 1000;
           const rate = rowCount / elapsedSeconds;
           const timeSinceLastProgress = (now - lastProgressTime) / 1000;
           
+          // Memory usage logging for large datasets
+          if (dataType === 'conversations' && now - lastMemoryLog > 30000) { // Every 30 seconds
+            const memUsage = process.memoryUsage();
+            const memMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+            console.log(`  → Memory usage: ${memMB}MB heap used`);
+            lastMemoryLog = now;
+          }
+          
           console.log(`  → ${dataType}: ${rowCount} rows processed (${rate.toFixed(1)} rows/sec, +${config.progressInterval} in ${timeSinceLastProgress.toFixed(1)}s)`);
           lastProgressTime = now;
         }
         
-        // Memory management for large datasets
-        if (dataType === 'cases' && rowCount % 5000 === 0) {
+        // Enhanced memory management for large datasets
+        if ((dataType === 'conversations' && rowCount % 2500 === 0) || 
+            (dataType === 'cases' && rowCount % 5000 === 0) ||
+            (dataType === 'interactions' && rowCount % 3000 === 0)) {
+          
           // Force garbage collection hint for large datasets
           if (global.gc) {
+            const beforeGC = process.memoryUsage().heapUsed;
             global.gc();
+            const afterGC = process.memoryUsage().heapUsed;
+            const freedMB = Math.round((beforeGC - afterGC) / 1024 / 1024);
+            if (freedMB > 10) { // Only log if significant memory was freed
+              console.log(`  → Garbage collection freed ${freedMB}MB of memory`);
+            }
           }
+        }
+        
+        // Warning for very large datasets
+        if (rowCount === 50000) {
+          console.log(`⚠️  Large dataset detected (${rowCount}+ rows). Processing may take significant time...`);
+        }
+        if (rowCount === 100000) {
+          console.log(`⚠️  Very large dataset (${rowCount}+ rows). Consider running during off-peak hours.`);
         }
       })
       .on('end', () => {
         clearTimeout(timeoutId);
         const duration = (Date.now() - startTime) / 1000;
+        const finalMemUsage = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+        
         console.log(`✓ ${dataType} CSV parsing completed: ${results.length} rows in ${duration.toFixed(2)}s (${(results.length/duration).toFixed(1)} rows/sec)`);
+        console.log(`  Final memory usage: ${finalMemUsage}MB`);
+        
+        // Final garbage collection for large datasets
+        if (results.length > 10000 && global.gc) {
+          console.log(`  → Running final garbage collection for large dataset...`);
+          global.gc();
+        }
+        
         resolve(results);
       })
       .on('error', (error) => {
@@ -237,8 +314,8 @@ function handleCSVError(error, dataType) {
   
   if (error.message.includes('timeout')) {
     errorMessage = `Timeout processing ${dataType} data`;
-    suggestion = dataType === 'cases' ? 
-      'Cases dataset is large - increase timeout or try during off-peak hours' : 
+    suggestion = ['conversations', 'cases', 'interactions'].includes(dataType) ? 
+      `${dataType} dataset is large - increase timeout or try during off-peak hours` : 
       'Try again - the API might be temporarily slow';
     retryRecommendation = 'Automatic retry with increased timeout will be attempted';
     
@@ -248,8 +325,8 @@ function handleCSVError(error, dataType) {
     
   } else if (error.message.includes('504')) {
     errorMessage = `Gateway timeout for ${dataType} endpoint`;
-    suggestion = dataType === 'cases' ? 
-      'Cases API is overloaded - try again in a few minutes' : 
+    suggestion = ['conversations', 'cases', 'interactions'].includes(dataType) ? 
+      `${dataType} API is overloaded - try again in a few minutes` : 
       'API gateway timeout - try again shortly';
     retryRecommendation = 'Will retry automatically with backoff';
     
@@ -283,8 +360,18 @@ function logProcessingSummary(dataType, startTime, recordCount, errors = []) {
   console.log(`Records processed: ${recordCount.toLocaleString()}`);
   console.log(`Processing rate: ${rate} records/second`);
   
-  // Performance assessment
-  const expectedRate = dataType === 'cases' ? 50 : 100; // Lower expectation for cases
+  // Performance assessment based on dataset type
+  let expectedRate;
+  if (dataType === 'conversations') {
+    expectedRate = 30; // Lower expectation for conversations due to complexity
+  } else if (dataType === 'cases') {
+    expectedRate = 50; // Lower expectation for cases
+  } else if (dataType === 'interactions') {
+    expectedRate = 75; // Medium expectation for interactions
+  } else {
+    expectedRate = 100; // Standard expectation
+  }
+  
   if (parseFloat(rate) < expectedRate) {
     console.log(`⚠️ Performance: Below expected rate of ${expectedRate} records/second`);
   } else {
@@ -356,11 +443,58 @@ function createProcessingReport(results) {
   return report;
 }
 
+// Validate CSV data structure (optional utility function)
+function validateCSVData(data, expectedColumns = []) {
+  if (!Array.isArray(data) || data.length === 0) {
+    return {
+      valid: false,
+      message: 'Data is empty or not an array',
+      issues: ['No data found']
+    };
+  }
+  
+  const actualColumns = Object.keys(data[0] || {});
+  const issues = [];
+  
+  // Check for expected columns
+  if (expectedColumns.length > 0) {
+    const missingColumns = expectedColumns.filter(col => !actualColumns.includes(col));
+    if (missingColumns.length > 0) {
+      issues.push(`Missing expected columns: ${missingColumns.join(', ')}`);
+    }
+  }
+  
+  // Check for empty records
+  const emptyRecords = data.filter(row => Object.values(row).every(val => !val || val.toString().trim() === ''));
+  if (emptyRecords.length > 0) {
+    issues.push(`Found ${emptyRecords.length} empty records`);
+  }
+  
+  // Check for consistent column structure
+  const inconsistentRows = data.filter(row => Object.keys(row).length !== actualColumns.length);
+  if (inconsistentRows.length > 0) {
+    issues.push(`Found ${inconsistentRows.length} rows with inconsistent column count`);
+  }
+  
+  return {
+    valid: issues.length === 0,
+    message: issues.length === 0 ? 'Data structure is valid' : 'Data structure has issues',
+    issues,
+    stats: {
+      totalRows: data.length,
+      totalColumns: actualColumns.length,
+      columns: actualColumns,
+      emptyRecords: emptyRecords.length,
+      inconsistentRows: inconsistentRows.length
+    }
+  };
+}
+
 module.exports = {
   downloadAndParseCSV,
   testAPIEndpoint,
   testAllAPIEndpoints,
-  validateCSVData: require('./csvUtils').validateCSVData, // Keep original
+  validateCSVData,
   handleCSVError,
   logProcessingSummary,
   createProcessingReport,
