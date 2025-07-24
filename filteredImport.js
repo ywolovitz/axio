@@ -61,12 +61,63 @@ function logError(message, error = null) {
   console.error(errorMessage);
 }
 
-// Modified data handlers that preserve existing data (no DELETE operations)
+// Debug function for cases import
+async function debugCasesImport(casesData) {
+  const connection = getConnection();
+  
+  try {
+    logger('🔍 DEBUGGING CASES IMPORT');
+    logger(`📊 Total cases to process: ${casesData.length}`);
+    
+    if (casesData.length === 0) {
+      logger('❌ No cases data provided');
+      return;
+    }
+    
+    // 1. Check existing table structure
+    logger('\n1️⃣ Checking Cases table structure...');
+    const [tableStructure] = await connection.execute('DESCRIBE Cases');
+    logger('📋 Cases table columns:');
+    tableStructure.forEach(col => {
+      logger(`   ${col.Field} (${col.Type}) - ${col.Null === 'YES' ? 'NULL' : 'NOT NULL'} - ${col.Key}`);
+    });
+    
+    // 2. Check current row count
+    const [countResult] = await connection.execute('SELECT COUNT(*) as count FROM Cases');
+    logger(`📊 Current Cases table has ${countResult[0].count} rows`);
+    
+    // 3. Check CSV column names
+    logger('\n2️⃣ Analyzing CSV data...');
+    const csvColumns = Object.keys(casesData[0]);
+    logger(`📋 CSV columns (${csvColumns.length} total):`);
+    csvColumns.forEach((col, index) => {
+      logger(`   ${index + 1}. "${col}"`);
+    });
+    
+    // 4. Check for ID column specifically
+    logger('\n3️⃣ Checking ID field...');
+    const firstCase = casesData[0];
+    const idValue = firstCase['ID'];
+    logger(`📊 First case ID: "${idValue}" (type: ${typeof idValue})`);
+    
+    // 5. Check for common required fields
+    logger('\n4️⃣ Checking key fields in first case...');
+    const keyFields = ['ID', 'Name', 'Status', 'Created At', 'Portfolio'];
+    keyFields.forEach(field => {
+      const value = firstCase[field];
+      logger(`   ${field}: "${value}" (${typeof value})`);
+    });
+    
+  } catch (error) {
+    logError('Debug failed', error);
+  }
+}
+
+// Modified Buildings data handler that preserves existing data
 async function appendBuildingsData(buildingsData) {
   const connection = getConnection();
   
   try {
-    // DO NOT DELETE existing data - preserve previous records
     logger(`📊 Appending ${buildingsData.length} buildings to existing data...`);
     
     const insertQuery = `
@@ -115,17 +166,21 @@ async function appendBuildingsData(buildingsData) {
   }
 }
 
+// Fixed Cases data handler that preserves existing data
 async function appendCasesData(casesData) {
   const connection = getConnection();
   
   try {
-    // DO NOT DELETE existing data - preserve previous records
     logger(`📊 Appending ${casesData.length} cases to existing data...`);
     
     if (casesData.length === 0) {
       return { inserted: 0, duplicates: 0 };
     }
 
+    // Debug first case (comment out after debugging)
+    // await debugCasesImport(casesData.slice(0, 1));
+
+    // Fixed column mapping - ensure all CSV columns are properly mapped
     const columnMapping = {
       'ID': 'id',
       'Logged Via': 'logged_via',
@@ -140,7 +195,7 @@ async function appendCasesData(casesData) {
       'Category': 'category',
       'Contact - First Name': 'contact_first_name',
       'Contact - Last Name': 'contact_last_name',
-      'Contact - Building Name ': 'contact_building_name',
+      'Contact - Building Name ': 'contact_building_name', // Note the trailing space
       'Contact - Portfolio': 'contact_portfolio',
       'Contact - Mobile': 'contact_mobile',
       'Contact - E-mail': 'contact_email',
@@ -163,20 +218,36 @@ async function appendCasesData(casesData) {
       'SLA Policy - ID': 'sla_policy_id'
     };
     
+    // Log available columns for debugging
+    if (casesData.length > 0) {
+      const csvColumns = Object.keys(casesData[0]);
+      logger(`📊 Available CSV columns: ${csvColumns.length} total`);
+      
+      // Check for unmapped columns
+      const unmappedColumns = csvColumns.filter(col => !columnMapping[col]);
+      if (unmappedColumns.length > 0) {
+        logger(`⚠️ Unmapped CSV columns: ${unmappedColumns.join(', ')}`);
+      }
+    }
+    
     const dbColumns = Object.values(columnMapping);
     const csvColumns = Object.keys(columnMapping);
     
     const placeholders = dbColumns.map(() => '?').join(', ');
     const insertQuery = `INSERT IGNORE INTO Cases (${dbColumns.join(', ')}) VALUES (${placeholders})`;
     
+    logger(`📊 Processing ${dbColumns.length} columns`);
+    
     let successCount = 0;
     let duplicateCount = 0;
+    let errorCount = 0;
     
     for (const caseItem of casesData) {
       try {
         const values = csvColumns.map(csvCol => {
           let value = caseItem[csvCol];
           
+          // Handle missing columns gracefully
           if (value === undefined || value === null || value === '') {
             return null;
           }
@@ -185,14 +256,17 @@ async function appendCasesData(casesData) {
             value = value.trim();
             const dbColumn = columnMapping[csvCol];
             
+            // Handle date fields - convert to MySQL datetime format
             if (['created_at', 'closed_at', 'first_reply', 'first_solved_at', 'solved_at'].includes(dbColumn)) {
               return convertToMySQLDateTime(value);
             }
             
+            // Handle integer fields
             if (['id', 'assigned_to', 'building_id', 'sla_policy_id'].includes(dbColumn)) {
               return convertToInt(value);
             }
             
+            // Handle decimal fields
             if (['time_logged', 'department_id', 'building_unit_details'].includes(dbColumn)) {
               return convertToDecimal(value);
             }
@@ -201,6 +275,11 @@ async function appendCasesData(casesData) {
           return value;
         });
         
+        // Debug first few inserts
+        if (successCount < 2) {
+          logger(`📊 Debug insert ${successCount + 1}: ID=${values[0]}, Name=${values[4]}, Status=${values[5]}`);
+        }
+        
         const [result] = await connection.execute(insertQuery, values);
         if (result.affectedRows > 0) {
           successCount++;
@@ -208,16 +287,38 @@ async function appendCasesData(casesData) {
           duplicateCount++;
         }
         
-      } catch (error) {
-        if (!error.message.includes('Duplicate entry')) {
-          throw error;
+        // Progress logging
+        if ((successCount + duplicateCount) % 100 === 0) {
+          logger(`📊 Progress: ${successCount} inserted, ${duplicateCount} duplicates...`);
         }
-        duplicateCount++;
+        
+      } catch (error) {
+        errorCount++;
+        if (error.message.includes('Duplicate entry')) {
+          duplicateCount++;
+        } else {
+          // Log actual errors (not duplicates)
+          if (errorCount <= 3) { // Limit error logging
+            logger(`❌ Error inserting case ${successCount + duplicateCount + errorCount}:`, error.message);
+            if (errorCount === 1) {
+              logger('❌ Problematic case data:', JSON.stringify(caseItem, null, 2));
+            }
+          }
+        }
       }
     }
     
     logger(`✅ Successfully appended ${successCount} new cases (${duplicateCount} duplicates skipped)`);
-    return { inserted: successCount, duplicates: duplicateCount };
+    if (errorCount > 0) {
+      logger(`⚠️ ${errorCount} cases had errors during insertion`);
+    }
+    
+    return { 
+      inserted: successCount, 
+      duplicates: duplicateCount, 
+      errors: errorCount 
+    };
+    
   } catch (error) {
     logError('Error appending cases data', error);
     throw error;
@@ -505,6 +606,7 @@ async function importFilteredData(req, res) {
         recordsProcessed: filteredData.length,
         recordsInserted: appendResult.inserted || filteredData.length,
         duplicatesSkipped: appendResult.duplicates || 0,
+        errors: appendResult.errors || 0,
         tableName: exportConfig.name,
         preservedExisting: true,
         note: appendResult.note || 'Data appended without clearing existing records'
@@ -512,6 +614,9 @@ async function importFilteredData(req, res) {
       logger(`✅ Successfully appended ${appendResult.inserted || filteredData.length} new records to ${exportConfig.name} table`);
       if (appendResult.duplicates > 0) {
         logger(`ℹ️ Skipped ${appendResult.duplicates} duplicate records`);
+      }
+      if (appendResult.errors > 0) {
+        logger(`⚠️ ${appendResult.errors} records had errors during insertion`);
       }
     } else {
       logger('⚠️ No filtered records to save to database');
@@ -588,5 +693,6 @@ module.exports = {
   appendGenericData,
   filterDataByDateRange,
   analyzeDataForDatePatterns,
-  saveFilteredDataToJSON
+  saveFilteredDataToJSON,
+  debugCasesImport
 };
