@@ -1,0 +1,814 @@
+[
+  {
+    "success": true,
+    "export_id": "5077534948",
+    "data_type": "buildings",
+    "records_found": 0,
+    "records_inserted": 0,
+    "duplicates_skipped": 0,
+    "duration": "1.00s",
+    "json_file": "buildings_5077534948_20250629_to_20250630_2025-07-24T19-57-27.json",
+    "response": {
+      "success": true,
+      "message": "No records found in the specified date range",
+      "exportId": "5077534948",
+      "dataType": "buildings",
+      "dateRange": {
+        "startDate": "2025-06-29",
+        "endDate": "2025-06-30"
+      },
+      "results": {
+        "totalRecordsRetrieved": 297,
+        "filteredRecordsFound": 0,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "buildings_5077534948_20250629_to_20250630_2025-07-24T19-57-27.json",
+          "filepath": "exports\\buildings_5077534948_20250629_to_20250630_2025-07-24T19-57-27.json",
+          "recordCount": 0
+        },
+        "database": null
+      },
+      "duration": "1.00s"
+    },
+    "month_name": "June 2025",
+    "start_date": "2025-06-29",
+    "end_date": "2025-06-30",
+    "operation_number": 1,
+    "timestamp": "2025-07-24T21:57:27.883954"
+  },
+  {
+    "success": true,
+    "export_id": "5002645397",
+    "data_type": "cases",
+    "records_found": 431,
+    "records_inserted": 431,
+    "duplicates_skipped": 431,
+    "duration": "47.23s",
+    "json_file": "cases_5002645397_20250629_to_20250630_2025-07-24T19-58-14.json",
+    "response": {
+      "success": true,
+      "message": "Successfully processed 431 filtered records",
+      "exportId": "5002645397",
+      "dataType": "cases",
+      "dateRange": {
+        "startDate": "2025-06-29",
+        "endDate": "2025-06-30"
+      },
+      "results": {
+        "totalRecordsRetrieved": 36502,
+        "filteredRecordsFound": 431,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "cases_5002645397_20250629_to_20250630_2025-07-24T19-58-14.json",
+          "filepath": "exports\\cases_5002645397_20250629_to_20250630_2025-07-24T19-58-14.json",
+          "recordCount": 431
+        },
+        "database": {
+          "recordsProcessed": 431,
+          "recordsInserted": 431,
+          "duplicatesSkipped": 431,
+          "errors": 0,
+          "tableName": "cases",
+          "preservedExisting": true,
+          "note": "Data appended without clearing existing records"
+        }
+      },
+      "duration": "47.23s"
+    },
+    "month_name": "June 2025",
+    "start_date": "2025-06-29",
+    "end_date": "2025-06-30",
+    "operation_number": 2,
+    "timestamp": "2025-07-24T21:58:16.146808"
+  },
+  {
+    "success": true,
+    "export_id": "5002207692",
+    "data_type": "conversations",
+    "records_found": 0,
+    "records_inserted": 0,
+    "duplicates_skipped": 0,
+    "duration": "2.51s",
+    "json_file": "conversations_5002207692_20250629_to_20250630_2025-07-24T19-58-19.json",
+    "response": {
+      "success": true,
+      "message": "No records found in the specified date range",
+      "exportId": "5002207692",
+      "dataType": "conversations",
+      "dateRange": {
+        "startDate": "2025-06-29",
+        "endDate": "2025-06-30"
+      },
+      "results": {
+        "totalRecordsRetrieved": 12,
+        "filteredRecordsFound": 0,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "conversations_5002207692_20250629_to_20250630_2025-07-24T19-58-19.json",
+          "filepath": "exports\\conversations_5002207692_20250629_to_20250630_2025-07-24T19-58-19.json",
+          "recordCount": 0
+        },
+        "database": null
+      },
+      "duration": "2.51s"
+    },
+    "month_name": "June 2025",
+    "start_date": "2025-06-29",
+    "end_date": "2025-06-30",
+    "operation_number": 3,
+    "timestamp": "2025-07-24T21:58:19.684351"
+  },
+  {
+    "success": true,
+    "export_id": "5053863837",
+    "data_type": "interactions",
+    "records_found": 0,
+    "records_inserted": 0,
+    "duplicates_skipped": 0,
+    "duration": "1.31s",
+    "json_file": "interactions_5053863837_20250629_to_20250630_2025-07-24T19-58-21.json",
+    "response": {
+      "success": true,
+      "message": "No records found in the specified date range",
+      "exportId": "5053863837",
+      "dataType": "interactions",
+      "dateRange": {
+        "startDate": "2025-06-29",
+        "endDate": "2025-06-30"
+      },
+      "results": {
+        "totalRecordsRetrieved": 132,
+        "filteredRecordsFound": 0,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "interactions_5053863837_20250629_to_20250630_2025-07-24T19-58-21.json",
+          "filepath": "exports\\interactions_5053863837_20250629_to_20250630_2025-07-24T19-58-21.json",
+          "recordCount": 0
+        },
+        "database": null
+      },
+      "duration": "1.31s"
+    },
+    "month_name": "June 2025",
+    "start_date": "2025-06-29",
+    "end_date": "2025-06-30",
+    "operation_number": 4,
+    "timestamp": "2025-07-24T21:58:22.010137"
+  },
+  {
+    "success": true,
+    "export_id": "5157703494",
+    "data_type": "nocInteractions",
+    "records_found": 0,
+    "records_inserted": 0,
+    "duplicates_skipped": 0,
+    "duration": "1.37s",
+    "json_file": "nocInteractions_5157703494_20250629_to_20250630_2025-07-24T19-58-24.json",
+    "response": {
+      "success": true,
+      "message": "No records found in the specified date range",
+      "exportId": "5157703494",
+      "dataType": "nocInteractions",
+      "dateRange": {
+        "startDate": "2025-06-29",
+        "endDate": "2025-06-30"
+      },
+      "results": {
+        "totalRecordsRetrieved": 132,
+        "filteredRecordsFound": 0,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "nocInteractions_5157703494_20250629_to_20250630_2025-07-24T19-58-24.json",
+          "filepath": "exports\\nocInteractions_5157703494_20250629_to_20250630_2025-07-24T19-58-24.json",
+          "recordCount": 0
+        },
+        "database": null
+      },
+      "duration": "1.37s"
+    },
+    "month_name": "June 2025",
+    "start_date": "2025-06-29",
+    "end_date": "2025-06-30",
+    "operation_number": 5,
+    "timestamp": "2025-07-24T21:58:24.409596"
+  },
+  {
+    "success": true,
+    "export_id": "4693855982",
+    "data_type": "userStateInteractions",
+    "records_found": 0,
+    "records_inserted": 0,
+    "duplicates_skipped": 0,
+    "duration": "0.64s",
+    "json_file": "userStateInteractions_4693855982_20250629_to_20250630_2025-07-24T19-58-26.json",
+    "response": {
+      "success": true,
+      "message": "No records found in the specified date range",
+      "exportId": "4693855982",
+      "dataType": "userStateInteractions",
+      "dateRange": {
+        "startDate": "2025-06-29",
+        "endDate": "2025-06-30"
+      },
+      "results": {
+        "totalRecordsRetrieved": 104,
+        "filteredRecordsFound": 0,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "userStateInteractions_4693855982_20250629_to_20250630_2025-07-24T19-58-26.json",
+          "filepath": "exports\\userStateInteractions_4693855982_20250629_to_20250630_2025-07-24T19-58-26.json",
+          "recordCount": 0
+        },
+        "database": null
+      },
+      "duration": "0.64s"
+    },
+    "month_name": "June 2025",
+    "start_date": "2025-06-29",
+    "end_date": "2025-06-30",
+    "operation_number": 6,
+    "timestamp": "2025-07-24T21:58:26.087908"
+  },
+  {
+    "success": true,
+    "export_id": "5157670999",
+    "data_type": "users",
+    "records_found": 0,
+    "records_inserted": 0,
+    "duplicates_skipped": 0,
+    "duration": "0.78s",
+    "json_file": "users_5157670999_20250629_to_20250630_2025-07-24T19-58-27.json",
+    "response": {
+      "success": true,
+      "message": "No records found in the specified date range",
+      "exportId": "5157670999",
+      "dataType": "users",
+      "dateRange": {
+        "startDate": "2025-06-29",
+        "endDate": "2025-06-30"
+      },
+      "results": {
+        "totalRecordsRetrieved": 27,
+        "filteredRecordsFound": 0,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "users_5157670999_20250629_to_20250630_2025-07-24T19-58-27.json",
+          "filepath": "exports\\users_5157670999_20250629_to_20250630_2025-07-24T19-58-27.json",
+          "recordCount": 0
+        },
+        "database": null
+      },
+      "duration": "0.78s"
+    },
+    "month_name": "June 2025",
+    "start_date": "2025-06-29",
+    "end_date": "2025-06-30",
+    "operation_number": 7,
+    "timestamp": "2025-07-24T21:58:27.905319"
+  },
+  {
+    "success": true,
+    "export_id": "5219392695",
+    "data_type": "userSessionHistory",
+    "records_found": 26,
+    "records_inserted": 26,
+    "duplicates_skipped": 0,
+    "duration": "8.35s",
+    "json_file": "userSessionHistory_5219392695_20250629_to_20250630_2025-07-24T19-58-36.json",
+    "response": {
+      "success": true,
+      "message": "Successfully processed 26 filtered records",
+      "exportId": "5219392695",
+      "dataType": "userSessionHistory",
+      "dateRange": {
+        "startDate": "2025-06-29",
+        "endDate": "2025-06-30"
+      },
+      "results": {
+        "totalRecordsRetrieved": 9728,
+        "filteredRecordsFound": 26,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "userSessionHistory_5219392695_20250629_to_20250630_2025-07-24T19-58-36.json",
+          "filepath": "exports\\userSessionHistory_5219392695_20250629_to_20250630_2025-07-24T19-58-36.json",
+          "recordCount": 26
+        },
+        "database": {
+          "recordsProcessed": 26,
+          "recordsInserted": 26,
+          "duplicatesSkipped": 0,
+          "errors": 0,
+          "tableName": "userSessionHistory",
+          "preservedExisting": true,
+          "note": "Used original handler - may have replaced existing data"
+        }
+      },
+      "duration": "8.35s"
+    },
+    "month_name": "June 2025",
+    "start_date": "2025-06-29",
+    "end_date": "2025-06-30",
+    "operation_number": 8,
+    "timestamp": "2025-07-24T21:58:37.280355"
+  },
+  {
+    "success": true,
+    "export_id": "20348692306",
+    "data_type": "schedule",
+    "records_found": 1,
+    "records_inserted": 1,
+    "duplicates_skipped": 0,
+    "duration": "0.50s",
+    "json_file": "schedule_20348692306_20250629_to_20250630_2025-07-24T19-58-38.json",
+    "response": {
+      "success": true,
+      "message": "Successfully processed 1 filtered records",
+      "exportId": "20348692306",
+      "dataType": "schedule",
+      "dateRange": {
+        "startDate": "2025-06-29",
+        "endDate": "2025-06-30"
+      },
+      "results": {
+        "totalRecordsRetrieved": 4,
+        "filteredRecordsFound": 1,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "schedule_20348692306_20250629_to_20250630_2025-07-24T19-58-38.json",
+          "filepath": "exports\\schedule_20348692306_20250629_to_20250630_2025-07-24T19-58-38.json",
+          "recordCount": 1
+        },
+        "database": {
+          "recordsProcessed": 1,
+          "recordsInserted": 1,
+          "duplicatesSkipped": 0,
+          "errors": 0,
+          "tableName": "schedule",
+          "preservedExisting": true,
+          "note": "Used original handler - may have replaced existing data"
+        }
+      },
+      "duration": "0.50s"
+    },
+    "month_name": "June 2025",
+    "start_date": "2025-06-29",
+    "end_date": "2025-06-30",
+    "operation_number": 9,
+    "timestamp": "2025-07-24T21:58:38.804879"
+  },
+  {
+    "success": true,
+    "export_id": "20357111093",
+    "data_type": "slaPolicy",
+    "records_found": 0,
+    "records_inserted": 0,
+    "duplicates_skipped": 0,
+    "duration": "0.70s",
+    "json_file": "slaPolicy_20357111093_20250629_to_20250630_2025-07-24T19-58-40.json",
+    "response": {
+      "success": true,
+      "message": "No records found in the specified date range",
+      "exportId": "20357111093",
+      "dataType": "slaPolicy",
+      "dateRange": {
+        "startDate": "2025-06-29",
+        "endDate": "2025-06-30"
+      },
+      "results": {
+        "totalRecordsRetrieved": 9,
+        "filteredRecordsFound": 0,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "slaPolicy_20357111093_20250629_to_20250630_2025-07-24T19-58-40.json",
+          "filepath": "exports\\slaPolicy_20357111093_20250629_to_20250630_2025-07-24T19-58-40.json",
+          "recordCount": 0
+        },
+        "database": null
+      },
+      "duration": "0.70s"
+    },
+    "month_name": "June 2025",
+    "start_date": "2025-06-29",
+    "end_date": "2025-06-30",
+    "operation_number": 10,
+    "timestamp": "2025-07-24T21:58:40.535201"
+  },
+  {
+    "success": true,
+    "export_id": "5077534948",
+    "data_type": "buildings",
+    "records_found": 0,
+    "records_inserted": 0,
+    "duplicates_skipped": 0,
+    "duration": "0.66s",
+    "json_file": "buildings_5077534948_20250701_to_20250724_2025-07-24T19-58-42.json",
+    "response": {
+      "success": true,
+      "message": "No records found in the specified date range",
+      "exportId": "5077534948",
+      "dataType": "buildings",
+      "dateRange": {
+        "startDate": "2025-07-01",
+        "endDate": "2025-07-24"
+      },
+      "results": {
+        "totalRecordsRetrieved": 297,
+        "filteredRecordsFound": 0,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "buildings_5077534948_20250701_to_20250724_2025-07-24T19-58-42.json",
+          "filepath": "exports\\buildings_5077534948_20250701_to_20250724_2025-07-24T19-58-42.json",
+          "recordCount": 0
+        },
+        "database": null
+      },
+      "duration": "0.66s"
+    },
+    "month_name": "July 2025",
+    "start_date": "2025-07-01",
+    "end_date": "2025-07-24",
+    "operation_number": 11,
+    "timestamp": "2025-07-24T21:58:42.233234"
+  },
+  {
+    "success": true,
+    "export_id": "5002645397",
+    "data_type": "cases",
+    "records_found": 6624,
+    "records_inserted": 184,
+    "duplicates_skipped": 6440,
+    "duration": "46.74s",
+    "json_file": "cases_5002645397_20250701_to_20250724_2025-07-24T19-59-22.json",
+    "response": {
+      "success": true,
+      "message": "Successfully processed 6624 filtered records",
+      "exportId": "5002645397",
+      "dataType": "cases",
+      "dateRange": {
+        "startDate": "2025-07-01",
+        "endDate": "2025-07-24"
+      },
+      "results": {
+        "totalRecordsRetrieved": 36502,
+        "filteredRecordsFound": 6624,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "cases_5002645397_20250701_to_20250724_2025-07-24T19-59-22.json",
+          "filepath": "exports\\cases_5002645397_20250701_to_20250724_2025-07-24T19-59-22.json",
+          "recordCount": 6624
+        },
+        "database": {
+          "recordsProcessed": 6624,
+          "recordsInserted": 184,
+          "duplicatesSkipped": 6440,
+          "errors": 0,
+          "tableName": "cases",
+          "preservedExisting": true,
+          "note": "Data appended without clearing existing records"
+        }
+      },
+      "duration": "46.74s"
+    },
+    "month_name": "July 2025",
+    "start_date": "2025-07-01",
+    "end_date": "2025-07-24",
+    "operation_number": 12,
+    "timestamp": "2025-07-24T21:59:29.992116"
+  },
+  {
+    "success": true,
+    "export_id": "5002207692",
+    "data_type": "conversations",
+    "records_found": 12,
+    "records_inserted": 12,
+    "duplicates_skipped": 0,
+    "duration": "1.22s",
+    "json_file": "conversations_5002207692_20250701_to_20250724_2025-07-24T19-59-32.json",
+    "response": {
+      "success": true,
+      "message": "Successfully processed 12 filtered records",
+      "exportId": "5002207692",
+      "dataType": "conversations",
+      "dateRange": {
+        "startDate": "2025-07-01",
+        "endDate": "2025-07-24"
+      },
+      "results": {
+        "totalRecordsRetrieved": 12,
+        "filteredRecordsFound": 12,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "conversations_5002207692_20250701_to_20250724_2025-07-24T19-59-32.json",
+          "filepath": "exports\\conversations_5002207692_20250701_to_20250724_2025-07-24T19-59-32.json",
+          "recordCount": 12
+        },
+        "database": {
+          "recordsProcessed": 12,
+          "recordsInserted": 12,
+          "duplicatesSkipped": 0,
+          "errors": 0,
+          "tableName": "conversations",
+          "preservedExisting": true,
+          "note": "Used original handler - may have replaced existing data"
+        }
+      },
+      "duration": "1.22s"
+    },
+    "month_name": "July 2025",
+    "start_date": "2025-07-01",
+    "end_date": "2025-07-24",
+    "operation_number": 13,
+    "timestamp": "2025-07-24T21:59:32.230511"
+  },
+  {
+    "success": true,
+    "export_id": "5053863837",
+    "data_type": "interactions",
+    "records_found": 133,
+    "records_inserted": 133,
+    "duplicates_skipped": 0,
+    "duration": "3.02s",
+    "json_file": "interactions_5053863837_20250701_to_20250724_2025-07-24T19-59-34.json",
+    "response": {
+      "success": true,
+      "message": "Successfully processed 133 filtered records",
+      "exportId": "5053863837",
+      "dataType": "interactions",
+      "dateRange": {
+        "startDate": "2025-07-01",
+        "endDate": "2025-07-24"
+      },
+      "results": {
+        "totalRecordsRetrieved": 133,
+        "filteredRecordsFound": 133,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "interactions_5053863837_20250701_to_20250724_2025-07-24T19-59-34.json",
+          "filepath": "exports\\interactions_5053863837_20250701_to_20250724_2025-07-24T19-59-34.json",
+          "recordCount": 133
+        },
+        "database": {
+          "recordsProcessed": 133,
+          "recordsInserted": 133,
+          "duplicatesSkipped": 0,
+          "errors": 0,
+          "tableName": "interactions",
+          "preservedExisting": true,
+          "note": "Used original handler - may have replaced existing data"
+        }
+      },
+      "duration": "3.02s"
+    },
+    "month_name": "July 2025",
+    "start_date": "2025-07-01",
+    "end_date": "2025-07-24",
+    "operation_number": 14,
+    "timestamp": "2025-07-24T21:59:36.277805"
+  },
+  {
+    "success": true,
+    "export_id": "5157703494",
+    "data_type": "nocInteractions",
+    "records_found": 133,
+    "records_inserted": 133,
+    "duplicates_skipped": 0,
+    "duration": "2.46s",
+    "json_file": "nocInteractions_5157703494_20250701_to_20250724_2025-07-24T19-59-38.json",
+    "response": {
+      "success": true,
+      "message": "Successfully processed 133 filtered records",
+      "exportId": "5157703494",
+      "dataType": "nocInteractions",
+      "dateRange": {
+        "startDate": "2025-07-01",
+        "endDate": "2025-07-24"
+      },
+      "results": {
+        "totalRecordsRetrieved": 133,
+        "filteredRecordsFound": 133,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "nocInteractions_5157703494_20250701_to_20250724_2025-07-24T19-59-38.json",
+          "filepath": "exports\\nocInteractions_5157703494_20250701_to_20250724_2025-07-24T19-59-38.json",
+          "recordCount": 133
+        },
+        "database": {
+          "recordsProcessed": 133,
+          "recordsInserted": 133,
+          "duplicatesSkipped": 0,
+          "errors": 0,
+          "tableName": "nocInteractions",
+          "preservedExisting": true,
+          "note": "Used original handler - may have replaced existing data"
+        }
+      },
+      "duration": "2.46s"
+    },
+    "month_name": "July 2025",
+    "start_date": "2025-07-01",
+    "end_date": "2025-07-24",
+    "operation_number": 15,
+    "timestamp": "2025-07-24T21:59:39.762274"
+  },
+  {
+    "success": true,
+    "export_id": "4693855982",
+    "data_type": "userStateInteractions",
+    "records_found": 104,
+    "records_inserted": 104,
+    "duplicates_skipped": 0,
+    "duration": "3.04s",
+    "json_file": "userStateInteractions_4693855982_20250701_to_20250724_2025-07-24T19-59-42.json",
+    "response": {
+      "success": true,
+      "message": "Successfully processed 104 filtered records",
+      "exportId": "4693855982",
+      "dataType": "userStateInteractions",
+      "dateRange": {
+        "startDate": "2025-07-01",
+        "endDate": "2025-07-24"
+      },
+      "results": {
+        "totalRecordsRetrieved": 104,
+        "filteredRecordsFound": 104,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "userStateInteractions_4693855982_20250701_to_20250724_2025-07-24T19-59-42.json",
+          "filepath": "exports\\userStateInteractions_4693855982_20250701_to_20250724_2025-07-24T19-59-42.json",
+          "recordCount": 104
+        },
+        "database": {
+          "recordsProcessed": 104,
+          "recordsInserted": 104,
+          "duplicatesSkipped": 0,
+          "errors": 0,
+          "tableName": "userStateInteractions",
+          "preservedExisting": true,
+          "note": "Used original handler - may have replaced existing data"
+        }
+      },
+      "duration": "3.04s"
+    },
+    "month_name": "July 2025",
+    "start_date": "2025-07-01",
+    "end_date": "2025-07-24",
+    "operation_number": 16,
+    "timestamp": "2025-07-24T21:59:43.818367"
+  },
+  {
+    "success": true,
+    "export_id": "5157670999",
+    "data_type": "users",
+    "records_found": 0,
+    "records_inserted": 0,
+    "duplicates_skipped": 0,
+    "duration": "1.33s",
+    "json_file": "users_5157670999_20250701_to_20250724_2025-07-24T19-59-46.json",
+    "response": {
+      "success": true,
+      "message": "No records found in the specified date range",
+      "exportId": "5157670999",
+      "dataType": "users",
+      "dateRange": {
+        "startDate": "2025-07-01",
+        "endDate": "2025-07-24"
+      },
+      "results": {
+        "totalRecordsRetrieved": 27,
+        "filteredRecordsFound": 0,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "users_5157670999_20250701_to_20250724_2025-07-24T19-59-46.json",
+          "filepath": "exports\\users_5157670999_20250701_to_20250724_2025-07-24T19-59-46.json",
+          "recordCount": 0
+        },
+        "database": null
+      },
+      "duration": "1.33s"
+    },
+    "month_name": "July 2025",
+    "start_date": "2025-07-01",
+    "end_date": "2025-07-24",
+    "operation_number": 17,
+    "timestamp": "2025-07-24T21:59:46.172450"
+  },
+  {
+    "success": true,
+    "export_id": "5219392695",
+    "data_type": "userSessionHistory",
+    "records_found": 491,
+    "records_inserted": 491,
+    "duplicates_skipped": 0,
+    "duration": "9.21s",
+    "json_file": "userSessionHistory_5219392695_20250701_to_20250724_2025-07-24T19-59-51.json",
+    "response": {
+      "success": true,
+      "message": "Successfully processed 491 filtered records",
+      "exportId": "5219392695",
+      "dataType": "userSessionHistory",
+      "dateRange": {
+        "startDate": "2025-07-01",
+        "endDate": "2025-07-24"
+      },
+      "results": {
+        "totalRecordsRetrieved": 9728,
+        "filteredRecordsFound": 491,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "userSessionHistory_5219392695_20250701_to_20250724_2025-07-24T19-59-51.json",
+          "filepath": "exports\\userSessionHistory_5219392695_20250701_to_20250724_2025-07-24T19-59-51.json",
+          "recordCount": 491
+        },
+        "database": {
+          "recordsProcessed": 491,
+          "recordsInserted": 491,
+          "duplicatesSkipped": 0,
+          "errors": 0,
+          "tableName": "userSessionHistory",
+          "preservedExisting": true,
+          "note": "Used original handler - may have replaced existing data"
+        }
+      },
+      "duration": "9.21s"
+    },
+    "month_name": "July 2025",
+    "start_date": "2025-07-01",
+    "end_date": "2025-07-24",
+    "operation_number": 18,
+    "timestamp": "2025-07-24T21:59:56.404976"
+  },
+  {
+    "success": true,
+    "export_id": "20348692306",
+    "data_type": "schedule",
+    "records_found": 0,
+    "records_inserted": 0,
+    "duplicates_skipped": 0,
+    "duration": "0.90s",
+    "json_file": "schedule_20348692306_20250701_to_20250724_2025-07-24T19-59-58.json",
+    "response": {
+      "success": true,
+      "message": "No records found in the specified date range",
+      "exportId": "20348692306",
+      "dataType": "schedule",
+      "dateRange": {
+        "startDate": "2025-07-01",
+        "endDate": "2025-07-24"
+      },
+      "results": {
+        "totalRecordsRetrieved": 4,
+        "filteredRecordsFound": 0,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "schedule_20348692306_20250701_to_20250724_2025-07-24T19-59-58.json",
+          "filepath": "exports\\schedule_20348692306_20250701_to_20250724_2025-07-24T19-59-58.json",
+          "recordCount": 0
+        },
+        "database": null
+      },
+      "duration": "0.90s"
+    },
+    "month_name": "July 2025",
+    "start_date": "2025-07-01",
+    "end_date": "2025-07-24",
+    "operation_number": 19,
+    "timestamp": "2025-07-24T21:59:58.340750"
+  },
+  {
+    "success": true,
+    "export_id": "20357111093",
+    "data_type": "slaPolicy",
+    "records_found": 0,
+    "records_inserted": 0,
+    "duplicates_skipped": 0,
+    "duration": "1.48s",
+    "json_file": "slaPolicy_20357111093_20250701_to_20250724_2025-07-24T20-00-00.json",
+    "response": {
+      "success": true,
+      "message": "No records found in the specified date range",
+      "exportId": "20357111093",
+      "dataType": "slaPolicy",
+      "dateRange": {
+        "startDate": "2025-07-01",
+        "endDate": "2025-07-24"
+      },
+      "results": {
+        "totalRecordsRetrieved": 9,
+        "filteredRecordsFound": 0,
+        "methodUsed": 1,
+        "jsonFile": {
+          "filename": "slaPolicy_20357111093_20250701_to_20250724_2025-07-24T20-00-00.json",
+          "filepath": "exports\\slaPolicy_20357111093_20250701_to_20250724_2025-07-24T20-00-00.json",
+          "recordCount": 0
+        },
+        "database": null
+      },
+      "duration": "1.48s"
+    },
+    "month_name": "July 2025",
+    "start_date": "2025-07-01",
+    "end_date": "2025-07-24",
+    "operation_number": 20,
+    "timestamp": "2025-07-24T22:00:00.835864"
+  }
+]
