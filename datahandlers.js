@@ -1235,17 +1235,44 @@ async function handleConversationsData(conversationsData) {
     console.log('=== CONVERSATIONS DATA ===');
     console.log(`Total conversations: ${conversationsData.length}`);
     
+    // Early return for empty data
     if (conversationsData.length === 0) {
       console.log('No conversations data to process');
-      return;
+      return {
+        success: true,
+        successCount: 0,
+        skippedCount: 0,
+        errorCount: 0,
+        totalRecords: 0,
+        totalInDB: 0,
+        message: 'No data to process'
+      };
     }
 
-    if (conversationsData.length > 0) {
-      console.log('Available CSV columns:', Object.keys(conversationsData[0]));
+    // Validate data structure
+    const firstRecord = conversationsData[0];
+    if (!firstRecord || typeof firstRecord !== 'object') {
+      console.error('❌ Invalid data structure - first record is not a valid object');
+      console.error('First record:', firstRecord);
+      throw new Error('Invalid conversations data structure');
     }
 
+    const csvKeys = Object.keys(firstRecord);
+    if (csvKeys.length === 0) {
+      console.error('❌ Invalid data structure - no columns found in CSV data');
+      console.error('Sample of first few records:');
+      conversationsData.slice(0, 3).forEach((record, index) => {
+        console.error(`Record ${index}:`, record);
+      });
+      throw new Error('No columns found in conversations CSV data');
+    }
+
+    console.log(`✅ Valid CSV structure detected with ${csvKeys.length} columns`);
+    console.log('Available CSV columns:', csvKeys);
+
+    // Show sample data for debugging
     console.log('Sample conversations data:');
-    conversationsData.slice(0, LOGGING_CONFIG.sampleDataLogs).forEach((conversationItem, index) => {
+    conversationsData.slice(0, Math.min(2, conversationsData.length)).forEach((conversationItem, index) => {
       console.log(`Conversation ${index + 1}:`, JSON.stringify(conversationItem, null, 2));
     });
     
@@ -1263,67 +1290,117 @@ async function handleConversationsData(conversationsData) {
       'Label': 'label',
       'Created At': 'created_at',
       'Updated At': 'updated_at',
-      'Contact - Building Name ': 'contact_building_name',
-      'Contact - Building Name': 'contact_building_name',
+      'Contact - Building Name ': 'contact_building_name',  // Note the trailing space
+      'Contact - Building Name': 'contact_building_name',   // Without trailing space
       'Contact - Portfolio': 'contact_portfolio'
     };
     
-    // Get actual CSV columns and create robust mapping
-    const csvKeys = Object.keys(conversationsData[0] || {});
+    // Create robust column mapping
     const validColumnMapping = {};
     
+    // First pass: exact matches
     Object.keys(columnMapping).forEach(csvCol => {
       if (csvKeys.includes(csvCol)) {
         validColumnMapping[csvCol] = columnMapping[csvCol];
+        console.log(`✓ Exact match: "${csvCol}"`);
       }
     });
     
-    // Fuzzy matching for missing columns
+    // Second pass: fuzzy matching for missing columns
     const missingColumns = Object.keys(columnMapping).filter(col => !csvKeys.includes(col));
     missingColumns.forEach(missingCol => {
-      const normalizedMissing = missingCol.toLowerCase().replace(/\s+/g, '');
+      const normalizedMissing = missingCol.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
       const matchingKey = csvKeys.find(key => {
-        const normalizedKey = key.toLowerCase().replace(/\s+/g, '');
-        return normalizedKey.includes(normalizedMissing) || normalizedMissing.includes(normalizedKey);
+        const normalizedKey = key.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+        return normalizedKey === normalizedMissing || 
+               normalizedKey.includes(normalizedMissing) || 
+               normalizedMissing.includes(normalizedKey);
       });
       
-      if (matchingKey) {
+      if (matchingKey && !Object.values(validColumnMapping).includes(columnMapping[missingCol])) {
         validColumnMapping[matchingKey] = columnMapping[missingCol];
-        console.log(`✓ Fuzzy matched "${missingCol}" to "${matchingKey}"`);
+        console.log(`✓ Fuzzy match: "${missingCol}" → "${matchingKey}"`);
       }
     });
     
-    // Ensure ID field exists
-    if (!validColumnMapping.hasOwnProperty('ID')) {
-      const idField = csvKeys.find(key => key.toLowerCase().includes('id') && key.length <= 4);
-      if (idField) {
-        validColumnMapping[idField] = 'id';
-        console.log(`✓ Found ID field: "${idField}"`);
-      } else {
-        throw new Error('Critical error: No ID field found in CSV data.');
+    // Critical: Ensure ID field exists
+    let idFieldFound = false;
+    
+    // Check if we have an ID field mapped
+    for (const [csvCol, dbCol] of Object.entries(validColumnMapping)) {
+      if (dbCol === 'id') {
+        idFieldFound = true;
+        console.log(`✅ ID field confirmed: "${csvCol}" → "${dbCol}"`);
+        break;
       }
     }
     
-    console.log('Final valid column mapping:', validColumnMapping);
+    // If no ID field found, search more aggressively
+    if (!idFieldFound) {
+      console.log('⚠️ No ID field found in initial mapping, searching alternatives...');
+      
+      // Look for any field that might be an ID
+      const idCandidates = csvKeys.filter(key => {
+        const normalizedKey = key.toLowerCase();
+        return normalizedKey.includes('id') || 
+               normalizedKey === 'conversation' ||
+               normalizedKey.includes('conv');
+      });
+      
+      console.log('ID candidates found:', idCandidates);
+      
+      if (idCandidates.length > 0) {
+        // Prefer exact "ID" match, then shortest name
+        const selectedId = idCandidates.find(key => key === 'ID') || 
+                          idCandidates.find(key => key.toLowerCase() === 'id') ||
+                          idCandidates.sort((a, b) => a.length - b.length)[0];
+        
+        validColumnMapping[selectedId] = 'id';
+        console.log(`✅ Selected ID field: "${selectedId}"`);
+        idFieldFound = true;
+      }
+    }
     
+    // Final fallback: use first column as ID
+    if (!idFieldFound && csvKeys.length > 0) {
+      const firstColumn = csvKeys[0];
+      validColumnMapping[firstColumn] = 'id';
+      console.log(`⚠️ Using first column as ID: "${firstColumn}"`);
+      idFieldFound = true;
+    }
+    
+    // Absolute last resort
+    if (!idFieldFound) {
+      console.error('❌ Critical: No suitable ID field found anywhere');
+      console.error('Available columns:', csvKeys);
+      throw new Error(`No ID field could be identified in conversations data. Available columns: ${csvKeys.join(', ')}`);
+    }
+    
+    console.log('✅ Final column mapping:', validColumnMapping);
+    
+    // Validate we have at least an ID field
     const dbColumns = Object.values(validColumnMapping);
     const csvColumns = Object.keys(validColumnMapping);
     
+    if (!dbColumns.includes('id')) {
+      throw new Error('Critical error: ID field not properly mapped');
+    }
+    
+    console.log(`📋 Mapping ${csvColumns.length} CSV columns to ${dbColumns.length} database columns`);
+    
     const placeholders = dbColumns.map(() => '?').join(', ');
     const insertQuery = `INSERT IGNORE INTO Conversations (${dbColumns.join(', ')}) VALUES (${placeholders})`;
-    console.log('Using INSERT IGNORE query:', insertQuery);
+    console.log('Using query:', insertQuery);
     
-    // Use batch processing
+    // Process data in batches
     const BATCH_SIZE = 1000;
     const totalBatches = Math.ceil(conversationsData.length / BATCH_SIZE);
     
-    console.log(`Processing ${conversationsData.length} conversations in ${totalBatches} batches`);
-    console.log('Using INSERT IGNORE to preserve existing data and skip duplicates');
+    console.log(`Processing ${conversationsData.length} conversations in ${totalBatches} batches of ${BATCH_SIZE}`);
     
     let totalSuccessCount = 0;
     let totalErrorCount = 0;
     let totalSkippedCount = 0;
-    const errors = [];
     
     for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
       const startIndex = batchIndex * BATCH_SIZE;
@@ -1332,93 +1409,88 @@ async function handleConversationsData(conversationsData) {
       
       console.log(`Processing batch ${batchIndex + 1}/${totalBatches} (records ${startIndex + 1}-${endIndex})...`);
       
-      await connection.beginTransaction();
+      let batchSuccessCount = 0;
+      let batchErrorCount = 0;
       
-      try {
-        let batchSuccessCount = 0;
-        let batchErrorCount = 0;
+      for (let i = 0; i < batch.length; i++) {
+        const conversationItem = batch[i];
+        const globalIndex = startIndex + i;
         
-        for (let i = 0; i < batch.length; i++) {
-          const conversationItem = batch[i];
-          const globalIndex = startIndex + i;
-          
-          try {
-            const values = csvColumns.map(csvCol => {
-              let value = conversationItem[csvCol];
-              
-              if (value === undefined || value === null || value === '') {
-                return null;
-              }
-              
-              if (typeof value === 'string') {
-                value = value.trim();
-                if (value === '') return null;
-                
-                const dbColumn = validColumnMapping[csvCol];
-                
-                if (['start_at', 'ended_at', 'completed'].includes(dbColumn)) {
-                  return convertToMySQLDateTime(value);
-                }
-                
-                if (['id'].includes(dbColumn)) {
-                  const intValue = convertToInt(value);
-                  if (intValue === null) {
-                    throw new Error(`Invalid ID value: ${value}`);
-                  }
-                  return intValue;
-                }
-              }
-              
-              return value;
-            });
+        try {
+          const values = csvColumns.map(csvCol => {
+            let value = conversationItem[csvCol];
             
-            const result = await connection.execute(insertQuery, values);
-            
-            if (result[0].affectedRows > 0) {
-              batchSuccessCount++;
-              totalSuccessCount++;
-            } else {
-              totalSkippedCount++;
+            if (value === undefined || value === null || value === '') {
+              return null;
             }
             
-          } catch (error) {
-            batchErrorCount++;
-            totalErrorCount++;
-            
-            if (totalErrorCount <= LOGGING_CONFIG.maxErrorLogs) {
-              console.error(`Error inserting conversation row ${globalIndex + 1}:`, error.message);
-              if (totalErrorCount === 1) {
-                console.error('Sample problematic data:', JSON.stringify(conversationItem, null, 2));
+            if (typeof value === 'string') {
+              value = value.trim();
+              if (value === '') return null;
+              
+              const dbColumn = validColumnMapping[csvCol];
+              
+              // Handle datetime fields
+              if (['start_at', 'ended_at', 'completed', 'created_at', 'updated_at'].includes(dbColumn)) {
+                return convertToMySQLDateTime(value);
               }
+              
+              // Handle ID field
+              if (dbColumn === 'id') {
+                const intValue = convertToInt(value);
+                if (intValue === null) {
+                  console.warn(`Warning row ${globalIndex + 1}: Could not convert ID "${value}" to integer`);
+                  return null; // Let database handle this
+                }
+                return intValue;
+              }
+            }
+            
+            return value;
+          });
+          
+          const result = await connection.execute(insertQuery, values);
+          
+          if (result[0].affectedRows > 0) {
+            batchSuccessCount++;
+            totalSuccessCount++;
+          } else {
+            totalSkippedCount++;
+          }
+          
+        } catch (error) {
+          batchErrorCount++;
+          totalErrorCount++;
+          
+          if (totalErrorCount <= 3) { // Only log first 3 errors
+            console.error(`Error inserting conversation row ${globalIndex + 1}:`, error.message);
+            if (totalErrorCount === 1) {
+              console.error('Problematic data sample:', JSON.stringify(conversationItem, null, 2));
             }
           }
         }
-        
-        await connection.commit();
-        console.log(`  ✓ Batch ${batchIndex + 1} completed: ${batchSuccessCount} inserted, ${batchErrorCount} errors`);
-        
-        if (conversationsData.length > 10000 && global.gc && batchIndex % 5 === 0) {
-          global.gc();
-        }
-        
-      } catch (batchError) {
-        await connection.rollback();
-        console.error(`✗ Batch ${batchIndex + 1} failed, rolling back:`, batchError.message);
-        totalErrorCount += batch.length;
+      }
+      
+      console.log(`  ✓ Batch ${batchIndex + 1}: ${batchSuccessCount} inserted, ${batchErrorCount} errors, ${batch.length - batchSuccessCount - batchErrorCount} skipped`);
+      
+      // Memory management for large datasets
+      if (conversationsData.length > 10000 && global.gc && batchIndex % 5 === 0) {
+        global.gc();
       }
       
       const percentComplete = ((batchIndex + 1) / totalBatches * 100).toFixed(1);
-      console.log(`Progress: ${percentComplete}% (${totalSuccessCount} new records, ${totalSkippedCount} duplicates skipped)`);
+      console.log(`Progress: ${percentComplete}% complete`);
     }
     
-    // Get total count in database
+    // Get final count
     const [countResult] = await connection.execute('SELECT COUNT(*) as total FROM Conversations');
     const totalInDB = countResult[0].total;
     
-    console.log(`✅ Successfully inserted ${totalSuccessCount} NEW conversations`);
-    if (totalSkippedCount > 0) console.log(`↺ Skipped ${totalSkippedCount} duplicate conversations`);
-    if (totalErrorCount > 0) console.log(`❌ Failed to process ${totalErrorCount} conversations`);
-    console.log(`📊 Total conversations now in database: ${totalInDB.toLocaleString()}`);
+    console.log(`✅ Processing completed:`);
+    console.log(`  - Successfully inserted: ${totalSuccessCount} NEW conversations`);
+    console.log(`  - Skipped duplicates: ${totalSkippedCount} conversations`);
+    console.log(`  - Errors encountered: ${totalErrorCount} conversations`);
+    console.log(`  - Total in database: ${totalInDB.toLocaleString()} conversations`);
     console.log('=========================');
     
     return {
@@ -1432,11 +1504,22 @@ async function handleConversationsData(conversationsData) {
     };
     
   } catch (error) {
-    console.error('Error handling conversations data:', error);
-    throw error;
+    console.error('❌ Fatal error in handleConversationsData:', error.message);
+    console.error('Error details:', error);
+    
+    // Return a proper error result instead of throwing
+    return {
+      success: false,
+      successCount: 0,
+      skippedCount: 0,
+      errorCount: conversationsData ? conversationsData.length : 0,
+      totalRecords: conversationsData ? conversationsData.length : 0,
+      totalInDB: 0,
+      error: error.message,
+      preservedExistingData: true
+    };
   }
 }
-
 module.exports = {
   saveBuildingsData,
   handleCasesData,

@@ -212,3 +212,4 @@ swagger-ui/
 logs
 test.py
 exports
+bulk_import.py
